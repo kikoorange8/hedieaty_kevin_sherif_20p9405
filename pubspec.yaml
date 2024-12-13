@@ -16,10 +16,11 @@ dependencies:
   flutter:
     sdk: flutter
   #Local database
-  sqflite: ^2.4.1
-  path: ^1.9.0
-  provider: ^6.1.2
-  intl: ^0.20.1
+  sqflite: ^2.2.5
+  path: ^1.8.3
+  intl: ^0.18.1
+  #provider: ^6.1.2
+
 
 
   # The following adds the Cupertino Icons font to your application.
