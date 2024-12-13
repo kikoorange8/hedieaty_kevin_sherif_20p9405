@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'event_list_page.dart';
+import 'gift_list_page.dart';
+import 'pledged_gift_page.dart';
+import 'profile_page.dart';
 
 class HomePage extends StatelessWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -10,50 +14,62 @@ class HomePage extends StatelessWidget {
         title: const Text('Home'),
         actions: [
           IconButton(
-            icon: Icon(Icons.search),
-            onPressed: () {
-            },
+            icon: const Icon(Icons.search),
+            onPressed: () {},
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: ElevatedButton(
-              onPressed: () {
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color.fromARGB(255, 168, 144, 207),
+      drawer: Drawer(
+        child: ListView(
+          children: [
+            const DrawerHeader(
+              decoration: BoxDecoration(color: Colors.deepPurple),
+              child: Text(
+                'Hedieaty Menu',
+                style: TextStyle(color: Colors.white, fontSize: 24),
               ),
-              child: const Text('Create Your Own Event/List'),
             ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: 2, // number of example friends
-              itemBuilder: (context, index) {
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundImage: AssetImage('assets/profile_placeholder.png'), // friend profile pic
-                  ),
-                  title: Text('Friend ${index + 1}'),
-                  subtitle: Text(index % 2 == 0 ? 'Upcoming Events: ${index % 3 + 1}' : 'No Upcoming Events'),
-                  trailing: Icon(Icons.arrow_forward),
-                  onTap: () {
-                  },
+            ListTile(
+              title: const Text('Event List'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const EventListPage()),
                 );
               },
             ),
-          ),
-        ],
+            ListTile(
+              title: const Text('Gift List'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const GiftListPage()),
+                );
+              },
+            ),
+            ListTile(
+              title: const Text('Pledged Gifts'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PledgedGiftPage()),
+                );
+              },
+            ),
+            ListTile(
+              title: const Text('Profile'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ProfilePage()),
+                );
+              },
+            ),
+          ],
+        ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-        },
-        label: const Text('Add Friend'),
-        icon: Icon(Icons.person_add),
-        backgroundColor: const Color.fromARGB(255, 180, 160, 216),
+      body: const Center(
+        child: Text('Welcome to Hedieaty!'),
       ),
     );
   }

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'gift_details_page.dart';
 
 class GiftListPage extends StatelessWidget {
-  const GiftListPage({Key? key}) : super(key: key);
+  const GiftListPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -12,16 +13,22 @@ class GiftListPage extends StatelessWidget {
       body: ListView(
         children: [
           ListTile(
-            title: Text('Gift 1'),
-            subtitle: Text('Description of Gift 1'),
-          ),
-          ListTile(
-            title: Text('Gift 2'),
-            subtitle: Text('Description of Gift 2'),
-          ),
-          ListTile(
-            title: Text('Gift 3'),
-            subtitle: Text('Description of Gift 3'),
+            title: const Text('Gift 1'),
+            subtitle: const Text('Description of Gift 1'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const GiftDetailsPage(
+                    giftName: 'Gift 1',
+                    description: 'Description of Gift 1',
+                    category: 'Books',
+                    price: 20.0,
+                    status: 'Available',
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

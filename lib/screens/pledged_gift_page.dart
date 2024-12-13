@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class PledgedGiftPage extends StatelessWidget {
-  const PledgedGiftPage({Key? key}) : super(key: key);
+  const PledgedGiftPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -10,7 +10,7 @@ class PledgedGiftPage extends StatelessWidget {
         title: const Text('Pledged Gifts'),
       ),
       body: ListView(
-        children: [
+        children: const [
           ListTile(
             title: Text('Pledged Gift 1'),
             subtitle: Text('Details about Pledged Gift 1'),
@@ -18,10 +18,6 @@ class PledgedGiftPage extends StatelessWidget {
           ListTile(
             title: Text('Pledged Gift 2'),
             subtitle: Text('Details about Pledged Gift 2'),
-          ),
-          ListTile(
-            title: Text('Pledged Gift 3'),
-            subtitle: Text('Details about Pledged Gift 3'),
           ),
         ],
       ),
