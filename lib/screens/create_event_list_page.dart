@@ -5,7 +5,9 @@ import '../models/event_model.dart';
 import '../models/gift_model.dart';
 
 class CreateEventListPage extends StatefulWidget {
-  const CreateEventListPage({super.key});
+  final int currentUserId;
+
+  const CreateEventListPage({super.key, required this.currentUserId});
 
   @override
   State<CreateEventListPage> createState() => _CreateEventListPageState();
@@ -15,17 +17,14 @@ class _CreateEventListPageState extends State<CreateEventListPage> {
   final EventRepository _eventRepository = EventRepository();
   final GiftRepository _giftRepository = GiftRepository();
 
-  // Controllers for event form
   final TextEditingController _eventNameController = TextEditingController();
   final TextEditingController _eventLocationController = TextEditingController();
   DateTime? _selectedEventDate;
 
-  // Controllers for gift form
   final TextEditingController _giftNameController = TextEditingController();
   final TextEditingController _giftDescriptionController = TextEditingController();
   final TextEditingController _giftCategoryController = TextEditingController();
   final TextEditingController _giftPriceController = TextEditingController();
-  int? _selectedEventId;
 
   Future<void> _createEvent() async {
     if (_eventNameController.text.isEmpty || _selectedEventDate == null) {
@@ -39,18 +38,28 @@ class _CreateEventListPageState extends State<CreateEventListPage> {
       name: _eventNameController.text,
       date: _selectedEventDate!.toIso8601String(),
       location: _eventLocationController.text,
-      userId: 1, // Replace with the current user's ID
+      userId: widget.currentUserId, // Set to current user ID
     );
+
     await _eventRepository.addEvent(newEvent);
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Event created successfully!")),
     );
-    Navigator.pop(context); // Return to the previous page
+
+    // Clear event form
+    _eventNameController.clear();
+    _eventLocationController.clear();
+    setState(() {
+      _selectedEventDate = null;
+    });
   }
 
   Future<void> _createGift() async {
-    if (_giftNameController.text.isEmpty || _selectedEventId == null) {
+    if (_giftNameController.text.isEmpty ||
+        _giftDescriptionController.text.isEmpty ||
+        _giftCategoryController.text.isEmpty ||
+        _giftPriceController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please fill all fields for the gift.")),
       );
@@ -63,15 +72,21 @@ class _CreateEventListPageState extends State<CreateEventListPage> {
       category: _giftCategoryController.text,
       price: double.tryParse(_giftPriceController.text) ?? 0.0,
       status: "Available",
-      eventId: _selectedEventId!,
+      eventId: null, // Assume not associated with an event
+      userId: widget.currentUserId, // Pass the currentUserId
     );
+
     await _giftRepository.addGift(newGift);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Gift added successfully!")),
+      const SnackBar(content: Text("Gift created successfully!")),
     );
 
-    Navigator.pop(context); // Return to the previous page
+    // Clear gift form
+    _giftNameController.clear();
+    _giftDescriptionController.clear();
+    _giftCategoryController.clear();
+    _giftPriceController.clear();
   }
 
   Future<void> _selectEventDate() async {
@@ -81,9 +96,11 @@ class _CreateEventListPageState extends State<CreateEventListPage> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    setState(() {
-      _selectedEventDate = pickedDate;
-    });
+    if (pickedDate != null) {
+      setState(() {
+        _selectedEventDate = pickedDate;
+      });
+    }
   }
 
   @override
@@ -100,17 +117,25 @@ class _CreateEventListPageState extends State<CreateEventListPage> {
             children: [
               const Text(
                 "Create Event",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
+              const SizedBox(height: 16),
               TextField(
                 controller: _eventNameController,
-                decoration: const InputDecoration(labelText: "Event Name"),
+                decoration: const InputDecoration(
+                  labelText: "Event Name",
+                  border: OutlineInputBorder(),
+                ),
               ),
+              const SizedBox(height: 16),
               TextField(
                 controller: _eventLocationController,
-                decoration: const InputDecoration(labelText: "Location"),
+                decoration: const InputDecoration(
+                  labelText: "Event Location",
+                  border: OutlineInputBorder(),
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
               Row(
                 children: [
                   ElevatedButton(
@@ -122,6 +147,7 @@ class _CreateEventListPageState extends State<CreateEventListPage> {
                     _selectedEventDate != null
                         ? _selectedEventDate!.toLocal().toString().split(' ')[0]
                         : "No Date Selected",
+                    style: const TextStyle(fontSize: 16, color: Colors.grey),
                   ),
                 ],
               ),
@@ -133,23 +159,39 @@ class _CreateEventListPageState extends State<CreateEventListPage> {
               const Divider(height: 32),
               const Text(
                 "Create Gift",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
+              const SizedBox(height: 16),
               TextField(
                 controller: _giftNameController,
-                decoration: const InputDecoration(labelText: "Gift Name"),
+                decoration: const InputDecoration(
+                  labelText: "Gift Name",
+                  border: OutlineInputBorder(),
+                ),
               ),
+              const SizedBox(height: 16),
               TextField(
                 controller: _giftDescriptionController,
-                decoration: const InputDecoration(labelText: "Description"),
+                decoration: const InputDecoration(
+                  labelText: "Gift Description",
+                  border: OutlineInputBorder(),
+                ),
               ),
+              const SizedBox(height: 16),
               TextField(
                 controller: _giftCategoryController,
-                decoration: const InputDecoration(labelText: "Category"),
+                decoration: const InputDecoration(
+                  labelText: "Gift Category",
+                  border: OutlineInputBorder(),
+                ),
               ),
+              const SizedBox(height: 16),
               TextField(
                 controller: _giftPriceController,
-                decoration: const InputDecoration(labelText: "Price"),
+                decoration: const InputDecoration(
+                  labelText: "Gift Price",
+                  border: OutlineInputBorder(),
+                ),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 16),

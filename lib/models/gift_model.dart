@@ -1,11 +1,12 @@
 class Gift {
-  int? id;
-  String name;
-  String description;
-  String category;
-  double price;
-  String status;
-  int eventId;
+  final int? id;
+  final String name;
+  final String description;
+  final String category;
+  final double price;
+  final String status;
+  final int? eventId;
+  final int userId; // Added userId
 
   Gift({
     this.id,
@@ -14,7 +15,8 @@ class Gift {
     required this.category,
     required this.price,
     required this.status,
-    required this.eventId,
+    this.eventId,
+    required this.userId, // Ensure userId is required
   });
 
   Map<String, dynamic> toMap() {
@@ -26,18 +28,20 @@ class Gift {
       'price': price,
       'status': status,
       'eventId': eventId,
+      'userId': userId, // Map userId
     };
   }
 
   factory Gift.fromMap(Map<String, dynamic> map) {
     return Gift(
-      id: map['id'],
-      name: map['name'],
-      description: map['description'],
-      category: map['category'],
-      price: map['price'],
-      status: map['status'],
-      eventId: map['eventId'],
+      id: map['id'] as int?,
+      name: map['name'] as String,
+      description: map['description'] as String,
+      category: map['category'] as String,
+      price: map['price'] as double,
+      status: map['status'] as String,
+      eventId: map['eventId'] as int?,
+      userId: map['userId'] as int, // Parse userId
     );
   }
 }

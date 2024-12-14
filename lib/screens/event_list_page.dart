@@ -1,83 +1,85 @@
 import 'package:flutter/material.dart';
+import '../repositories/event_repository.dart';
+import '../models/event_model.dart';
 
-import 'package:flutter/material.dart';
-
-class EventListPage extends StatelessWidget {
+class EventListPage extends StatefulWidget {
   final int currentUserId;
+  final bool isFriendEvents;
 
-  const EventListPage({super.key, required this.currentUserId});
+  const EventListPage({
+    super.key,
+    required this.currentUserId,
+    this.isFriendEvents = false,
+  });
+
+  @override
+  State<EventListPage> createState() => _EventListPageState();
+}
+
+class _EventListPageState extends State<EventListPage> {
+  final EventRepository _eventRepository = EventRepository();
+  List<Event> _events = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchEvents();
+  }
+
+  Future<void> _fetchEvents() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Fetch events based on the passed userId
+    final events = await _eventRepository.fetchEventsForUser(widget.currentUserId);
+
+    setState(() {
+      _events = events;
+      _isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Event List')),
-      body: Center(child: Text('Events for User ID: $currentUserId')),
+      appBar: AppBar(
+        title: widget.isFriendEvents
+            ? const Text('Friend\'s Events')
+            : const Text('My Events'),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _events.isEmpty
+          ? const Center(
+        child: Text(
+          'No events available.',
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      )
+          : ListView.builder(
+        itemCount: _events.length,
+        itemBuilder: (context, index) {
+          final event = _events[index];
+          return Card(
+            margin: const EdgeInsets.symmetric(
+              vertical: 8,
+              horizontal: 16,
+            ),
+            child: ListTile(
+              title: Text(event.name),
+              subtitle: Text(
+                'Date: ${event.date}\nLocation: ${event.location}',
+              ),
+              trailing: const Icon(Icons.arrow_forward),
+              onTap: () {
+                // Optionally, navigate to a detailed event page
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 }
-
-  Future<void> _addEvent(BuildContext context) async {
-    final nameController = TextEditingController();
-    final locationController = TextEditingController();
-    DateTime? selectedDate;
-
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Add Event'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Event Name'),
-                ),
-                TextField(
-                  controller: locationController,
-                  decoration: const InputDecoration(labelText: 'Location'),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () async {
-                    selectedDate = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime.now(),
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2100),
-                    );
-                  },
-                  child: const Text("Pick Event Date"),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                if (nameController.text.isEmpty ||
-                    locationController.text.isEmpty ||
-                    selectedDate == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Please fill all fields.")),
-                  );
-                } else {
-                  // Save event to database
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-
-
