@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:hedieaty_kevin_sherif_20p9405/models/event_model.dart';
+import 'package:hedieaty_kevin_sherif_20p9405/screens/event_list_page.dart';
+import 'package:hedieaty_kevin_sherif_20p9405/screens/gift_list_page.dart';
+import 'package:hedieaty_kevin_sherif_20p9405/screens/pledged_gift_page.dart';
+import 'package:hedieaty_kevin_sherif_20p9405/screens/profile_page.dart';
 import '../repositories/friend_repositroy.dart';
 import '../repositories/event_repository.dart';
 import '../models/friend_model.dart';
@@ -53,18 +58,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _fetchFriendsWithEvents() async {
+    print("Fetching friends with events...");
     final friends = await _friendRepository.fetchFriends(_currentUserId);
-    final List<Map<String, dynamic>> friendsWithEvents = [];
 
+    final List<Map<String, dynamic>> friendsWithEvents = [];
     for (final friend in friends) {
+      print("Fetching events for friend: ${friend.friendName}");
       final events = await _eventRepository.fetchEventsForUser(friend.friendId);
       friendsWithEvents.add({
         'friend': friend,
-        'events': events.map((e) => e.name).toList(), // Extract event names
+        'events': events.map((e) => e.name).toList(),
       });
     }
 
     setState(() {
+      print("Setting state with friends and events...");
       _friendsWithEvents = friendsWithEvents;
     });
   }
