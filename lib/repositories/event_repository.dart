@@ -1,22 +1,14 @@
-import 'package:sqflite/sqflite.dart';
-
 import '../database/database_helper.dart';
 import '../models/event_model.dart';
 
 class EventRepository {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
 
-  // Add a new event
   Future<int> addEvent(Event event) async {
     final db = await _dbHelper.database;
-    return await db.insert(
-      'events',
-      event.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    return await db.insert('events', event.toMap());
   }
 
-  // Fetch all events for a specific user
   Future<List<Event>> fetchEventsForUser(int userId) async {
     final db = await _dbHelper.database;
     final List<Map<String, dynamic>> maps = await db.query(
@@ -27,7 +19,16 @@ class EventRepository {
     return maps.map((map) => Event.fromMap(map)).toList();
   }
 
-  // Delete an event
+  Future<int> updateEvent(Event event) async {
+    final db = await _dbHelper.database;
+    return await db.update(
+      'events',
+      event.toMap(),
+      where: 'id = ?',
+      whereArgs: [event.id],
+    );
+  }
+
   Future<int> deleteEvent(int id) async {
     final db = await _dbHelper.database;
     return await db.delete(
