@@ -15,10 +15,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Initialize Flutter bindings
 
   // Call the database testing function
-  testDatabase();
+  //testDatabase();
 
-  // Comment out the app launch for now
-  // runApp(const MyApp());
+
+   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -39,7 +39,7 @@ class MyApp extends StatelessWidget {
 
 // Database Testing Function
 void testDatabase() async {
-  // Delete the existing database for testing
+  // Delete existing database for testing purposes
   await DatabaseHelper.instance.deleteDatabaseFile();
 
   final userRepository = UserRepository();
@@ -48,8 +48,11 @@ void testDatabase() async {
 
   print("Starting Database Tests...");
 
-  // Insert sample data
+  // Insert sample user
   await userRepository.addUser(User(name: "John Doe", email: "john@example.com"));
+
+  // Insert multiple friends
+  print("Inserting Friends...");
   await friendRepository.addFriend(Friend(
     userId: 1,
     friendId: 2,
@@ -57,21 +60,54 @@ void testDatabase() async {
     friendProfilePicture: "",
     hasUpcomingEvents: true,
   ));
+  await friendRepository.addFriend(Friend(
+    userId: 1,
+    friendId: 3,
+    friendName: "Bob",
+    friendProfilePicture: "",
+    hasUpcomingEvents: true,
+  ));
+  await friendRepository.addFriend(Friend(
+    userId: 1,
+    friendId: 4,
+    friendName: "Charlie",
+    friendProfilePicture: "",
+    hasUpcomingEvents: false,
+  ));
+
+  // Insert multiple events
+  print("Inserting Events...");
   await eventRepository.addEvent(Event(
-    name: "Birthday Party",
+    name: "Alice's Birthday Party",
     date: "2024-12-25",
     userId: 2,
   ));
+  await eventRepository.addEvent(Event(
+    name: "Alice's Wedding",
+    date: "2025-06-10",
+    userId: 2,
+  ));
+  await eventRepository.addEvent(Event(
+    name: "Bob's Graduation",
+    date: "2024-05-15",
+    userId: 3,
+  ));
 
   // Fetch and print data
+  print("Fetching Users...");
   final users = await userRepository.fetchUsers();
   print("Users: $users");
 
+  print("Fetching Friends...");
   final friends = await friendRepository.fetchFriends(1);
   print("Friends: $friends");
 
-  final events = await eventRepository.fetchEventsForUser(2);
-  print("Events: $events");
+  print("Fetching Events...");
+  for (var friend in friends) {
+    final events = await eventRepository.fetchEventsForUser(friend.friendId);
+    print("${friend.friendName}'s Events: $events");
+  }
 
   print("Database Tests Completed.");
 }
+
