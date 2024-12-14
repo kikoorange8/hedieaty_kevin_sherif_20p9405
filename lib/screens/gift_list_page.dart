@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import '../models/gift_model.dart';
 import '../repositories/gift_repository.dart';
+import '../models/gift_model.dart';
 
 class GiftListPage extends StatefulWidget {
-  final int userId; // The user ID to fetch gifts for
-  final bool isCurrentUser; // Indicates if this page is for the current user
+  final int userId; // User or friend's ID
+  final bool isCurrentUser; // Indicates if this is the current user's gifts
 
   const GiftListPage({
     super.key,
     required this.userId,
-    this.isCurrentUser = false, // Defaults to false for friends' gifts
+    this.isCurrentUser = false, // Defaults to friend's gifts
   });
 
   @override
@@ -24,43 +24,7 @@ class _GiftListPageState extends State<GiftListPage> {
   @override
   void initState() {
     super.initState();
-    _addSampleGifts(); // Add sample gifts for testing
     _fetchGifts();
-  }
-
-  Future<void> _addSampleGifts() async {
-    // Add sample gifts for testing
-    final sampleGifts = [
-      Gift(
-        name: "Laptop",
-        description: "A high-performance laptop.",
-        category: "Electronics",
-        price: 1200.00,
-        status: "Available",
-        eventId: 1, // Assume event ID 1 exists in the database
-      ),
-      Gift(
-        name: "Smartphone",
-        description: "The latest smartphone model.",
-        category: "Electronics",
-        price: 800.00,
-        status: "Pledged",
-        eventId: 1, // Same event ID as above
-      ),
-      Gift(
-        name: "Book",
-        description: "A best-selling novel.",
-        category: "Books",
-        price: 20.00,
-        status: "Available",
-        eventId: 2, // Assume event ID 2 exists in the database
-      ),
-    ];
-
-    for (var gift in sampleGifts) {
-      await _giftRepository.addGift(gift);
-    }
-    print("Sample gifts added for testing.");
   }
 
   Future<void> _fetchGifts() async {
@@ -68,12 +32,35 @@ class _GiftListPageState extends State<GiftListPage> {
       _isLoading = true;
     });
 
-    // Fetch all gifts for the user or friend's events
+    // Fetch all gifts for the current user or friend's events
     final gifts = await _giftRepository.fetchGiftsForUser(widget.userId);
     setState(() {
       _gifts = gifts;
       _isLoading = false;
     });
+  }
+
+  Future<void> _pledgeGift(Gift gift) async {
+    if (gift.status == "Available") {
+      final updatedGift = Gift(
+        id: gift.id,
+        name: gift.name,
+        description: gift.description,
+        category: gift.category,
+        price: gift.price,
+        status: "Pledged",
+        eventId: gift.eventId,
+      );
+      await _giftRepository.updateGift(updatedGift);
+      await _fetchGifts(); // Refresh the list after updating
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Gift pledged successfully!")),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("This gift is already pledged.")),
+      );
+    }
   }
 
   @override
@@ -107,20 +94,17 @@ class _GiftListPageState extends State<GiftListPage> {
                 style: const TextStyle(fontSize: 14),
               ),
               trailing: Text(
-                gift.status, // Status (e.g., Available, Pledged, Purchased)
+                gift.status,
                 style: TextStyle(
                   fontSize: 14,
                   color: gift.status == 'Pledged'
                       ? Colors.orange
-                      : gift.status == 'Purchased'
-                      ? Colors.green
                       : Colors.blue,
                 ),
               ),
-              onTap: () {
-                print('Tapped on gift: ${gift.name}');
-                // Navigate to gift details if needed
-              },
+              onTap: widget.isCurrentUser
+                  ? null // No action for the current user's gifts
+                  : () => _pledgeGift(gift), // Pledge gift for friend's gifts
             ),
           );
         },
