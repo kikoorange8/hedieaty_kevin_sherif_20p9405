@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
@@ -21,18 +21,43 @@ class DatabaseHelper {
     return await openDatabase(
       path,
       version: 1,
-      onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE friends (
-            userId INTEGER NOT NULL,
-            friendId INTEGER NOT NULL,
-            friendName TEXT NOT NULL,
-            friendProfilePicture TEXT,
-            hasUpcomingEvents INTEGER NOT NULL,
-            PRIMARY KEY (userId, friendId)
-          )
-        ''');
-      },
+      onCreate: _onCreate,
+    );
+  }
+
+  Future<void> _onCreate(Database db, int version) async {
+    // Create friends table
+    await db.execute('''
+      CREATE TABLE friends (
+        userId INTEGER NOT NULL,
+        friendId INTEGER NOT NULL,
+        friendName TEXT NOT NULL,
+        friendProfilePicture TEXT,
+        hasUpcomingEvents INTEGER NOT NULL,
+        PRIMARY KEY (userId, friendId)
+      )
+    ''');
+
+    // Create events table
+    await db.execute('''
+      CREATE TABLE events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        date TEXT NOT NULL,
+        location TEXT,
+        description TEXT,
+        userId INTEGER NOT NULL
+      )
+    ''');
+  }
+
+  // Fetch events for a specific userId
+  Future<List<Map<String, dynamic>>> fetchEventsForUser(int userId) async {
+    final db = await database;
+    return await db.query(
+      'events',
+      where: 'userId = ?',
+      whereArgs: [userId],
     );
   }
 }

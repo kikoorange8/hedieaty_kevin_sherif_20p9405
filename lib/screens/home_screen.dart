@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import '../repositories/friend_repositroy.dart';
+import '../repositories/event_repository.dart';
 import '../models/friend_model.dart';
-import 'event_list_page.dart';
-import 'gift_list_page.dart';
-import 'pledged_gift_page.dart';
-import 'profile_page.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,49 +12,55 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final FriendRepository _friendRepository = FriendRepository();
+  final EventRepository _eventRepository = EventRepository();
   final int _currentUserId = 1; // Simulated logged-in user ID
   List<Map<String, dynamic>> _friendsWithEvents = [];
-  int _currentIndex = 0; // Keeps track of the selected tab
+  int _currentIndex = 0; // Current tab index
 
   @override
   void initState() {
     super.initState();
-    _addSampleFriends();
+    _addSampleData();
     _fetchFriendsWithEvents();
   }
 
-  Future<void> _addSampleFriends() async {
-    // Add Friend 1 (No upcoming events)
+  Future<void> _addSampleData() async {
+    // Add sample friends
     await _friendRepository.addFriend(Friend(
       userId: _currentUserId,
       friendId: 2,
       friendName: 'Alice',
-      friendProfilePicture: '', // Add an asset or network path
+      friendProfilePicture: '',
       hasUpcomingEvents: true,
     ));
 
-    // Add Friend 2 (No upcoming events)
     await _friendRepository.addFriend(Friend(
       userId: _currentUserId,
       friendId: 3,
       friendName: 'Bob',
-      friendProfilePicture: '', // Add an asset or network path
+      friendProfilePicture: '',
       hasUpcomingEvents: false,
+    ));
+
+    // Add sample events
+    await _eventRepository.addEvent(Event(
+      name: 'Birthday Party',
+      date: '2024-12-25',
+      location: 'Alice\'s House',
+      description: 'Celebrating Alice\'s Birthday',
+      userId: 2, // Event for Alice
     ));
   }
 
   Future<void> _fetchFriendsWithEvents() async {
-    // Fetch all friends for the current user
     final friends = await _friendRepository.fetchFriends(_currentUserId);
-
-    // Add events to the friends' data
     final List<Map<String, dynamic>> friendsWithEvents = [];
+
     for (final friend in friends) {
+      final events = await _eventRepository.fetchEventsForUser(friend.friendId);
       friendsWithEvents.add({
         'friend': friend,
-        'events': friend.hasUpcomingEvents
-            ? <String>['Event 1: Birthday'] // Explicit cast
-            : <String>[], // Explicit cast
+        'events': events.map((e) => e.name).toList(), // Extract event names
       });
     }
 
@@ -67,8 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   final List<Widget> _pages = [
-    // Pages for each tab
-    const Center(child: Text('Friends List')), // Placeholder for Home tab
+    const Center(child: Text('Friends List')),
     EventListPage(),
     GiftListPage(),
     PledgedGiftPage(),
@@ -98,14 +100,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           backgroundImage: AssetImage(
                             friend.friendProfilePicture.isNotEmpty
                                 ? friend.friendProfilePicture
-                                : 'assets/default_profile.png', // Fallback to a default profile image
+                                : 'assets/default_profile.png',
                           ),
                         ),
                         title: Text(friend.friendName),
                         subtitle: Text(
                           events.isEmpty
                               ? 'No Upcoming Events'
-                              : events.join('\n'), // Properly joins event strings
+                              : events.join('\n'), // Display event names
                           style: const TextStyle(fontSize: 14, color: Colors.grey),
                         ),
                         trailing: const Icon(Icons.arrow_forward),
