@@ -1,9 +1,9 @@
 class Friend {
-  final int userId; // The ID of the current user
-  final int friendId; // The ID of the friend
-  final String friendName; // The friend's name
-  final String friendProfilePicture; // The friend's profile picture URL or file path
-  final bool hasUpcomingEvents; // Indicates if the friend has upcoming events
+  final int userId;
+  final int friendId;
+  final String friendName;
+  final String friendProfilePicture;
+  final bool hasUpcomingEvents;
 
   Friend({
     required this.userId,
@@ -13,7 +13,6 @@ class Friend {
     required this.hasUpcomingEvents,
   });
 
-  // Convert Friend to a Map for SQLite
   Map<String, dynamic> toMap() {
     return {
       'userId': userId,
@@ -24,8 +23,7 @@ class Friend {
     };
   }
 
-  // Create a Friend from a Map
-  factory Friend.fromMap(Map<String, dynamic> map) {
+  static Friend fromMap(Map<String, dynamic> map) {
     return Friend(
       userId: map['userId'],
       friendId: map['friendId'],

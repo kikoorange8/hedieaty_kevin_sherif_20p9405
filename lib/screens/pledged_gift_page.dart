@@ -3,7 +3,9 @@ import '../repositories/gift_repository.dart';
 import '../models/gift_model.dart';
 
 class PledgedGiftPage extends StatefulWidget {
-  const PledgedGiftPage({super.key});
+  final int currentUserId;
+
+  const PledgedGiftPage({super.key, required this.currentUserId});
 
   @override
   State<PledgedGiftPage> createState() => _PledgedGiftPageState();
@@ -11,13 +13,13 @@ class PledgedGiftPage extends StatefulWidget {
 
 class _PledgedGiftPageState extends State<PledgedGiftPage> {
   final GiftRepository _giftRepository = GiftRepository();
-  List<Gift> _pledgedGifts = [];
-  bool _isLoading = true;
+  bool _isLoading = true; // Tracks loading state
+  List<Gift> _pledgedGifts = []; // Holds pledged gifts
 
   @override
   void initState() {
     super.initState();
-    _fetchPledgedGifts();
+    _fetchPledgedGifts(); // Fetch pledged gifts when the page initializes
   }
 
   Future<void> _fetchPledgedGifts() async {
@@ -25,11 +27,23 @@ class _PledgedGiftPageState extends State<PledgedGiftPage> {
       _isLoading = true;
     });
 
-    final pledgedGifts = await _giftRepository.fetchGiftsByStatus("Pledged");
-    setState(() {
-      _pledgedGifts = pledgedGifts;
-      _isLoading = false;
-    });
+    try {
+      // Fetch pledged gifts for the current user
+      final pledgedGifts = await _giftRepository.fetchGiftsByStatus(
+        status: "Pledged",
+        userId: widget.currentUserId,
+      );
+      setState(() {
+        _pledgedGifts = pledgedGifts;
+      });
+    } catch (e) {
+      // Handle errors (optional)
+      print("Error fetching pledged gifts: $e");
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -52,7 +66,10 @@ class _PledgedGiftPageState extends State<PledgedGiftPage> {
         itemBuilder: (context, index) {
           final gift = _pledgedGifts[index];
           return Card(
-            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            margin: const EdgeInsets.symmetric(
+              vertical: 8,
+              horizontal: 16,
+            ),
             child: ListTile(
               leading: const Icon(Icons.card_giftcard, size: 40),
               title: Text(gift.name),
@@ -62,7 +79,10 @@ class _PledgedGiftPageState extends State<PledgedGiftPage> {
               ),
               trailing: Text(
                 gift.status,
-                style: const TextStyle(fontSize: 14, color: Colors.orange),
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.orange,
+                ),
               ),
             ),
           );

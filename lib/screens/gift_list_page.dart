@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hedieaty_kevin_sherif_20p9405/screens/gift_details_page.dart';
 import '../repositories/gift_repository.dart';
 import '../models/gift_model.dart';
 
@@ -102,9 +103,17 @@ class _GiftListPageState extends State<GiftListPage> {
                       : Colors.blue,
                 ),
               ),
-              onTap: widget.isCurrentUser
-                  ? null // No action for the current user's gifts
-                  : () => _pledgeGift(gift), // Pledge gift for friend's gifts
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => GiftDetailsPage(
+                      gift: gift, // Pass the selected gift
+                      isCurrentUser: widget.isCurrentUser, // Pass whether this is the current user
+                    ),
+                  ),
+                );
+              },
             ),
           );
         },

@@ -4,29 +4,33 @@ import '../models/gift_model.dart';
 class GiftRepository {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
 
-  // Fetch all gifts for a specific user
+  // Fetch gifts by user ID
   Future<List<Gift>> fetchGiftsForUser(int userId) async {
     final db = await _dbHelper.database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'gifts',
-      where: 'eventId IN (SELECT id FROM events WHERE userId = ?)',
-      whereArgs: [userId],
+    final result = await db.rawQuery(
+      'SELECT * FROM gifts WHERE eventId IN (SELECT id FROM events WHERE userId = ?)',
+      [userId],
     );
-    return maps.map((map) => Gift.fromMap(map)).toList();
+    return result.map((map) => Gift.fromMap(map)).toList();
   }
 
-  // Fetch all gifts by status (e.g., "Pledged")
-  Future<List<Gift>> fetchGiftsByStatus(String status) async {
+  // Fetch gifts by status
+  Future<List<Gift>> fetchGiftsByStatus({required String status, required int userId}) async {
     final db = await _dbHelper.database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'gifts',
-      where: 'status = ?',
-      whereArgs: [status],
+    final result = await db.rawQuery(
+      'SELECT * FROM gifts WHERE status = ? AND eventId IN (SELECT id FROM events WHERE userId = ?)',
+      [status, userId],
     );
-    return maps.map((map) => Gift.fromMap(map)).toList();
+    return result.map((map) => Gift.fromMap(map)).toList();
   }
 
-  // Update gift (e.g., pledge a gift)
+  // Add a new gift
+  Future<int> addGift(Gift gift) async {
+    final db = await _dbHelper.database;
+    return await db.insert('gifts', gift.toMap());
+  }
+
+  // Update an existing gift
   Future<int> updateGift(Gift gift) async {
     final db = await _dbHelper.database;
     return await db.update(
@@ -34,6 +38,16 @@ class GiftRepository {
       gift.toMap(),
       where: 'id = ?',
       whereArgs: [gift.id],
+    );
+  }
+
+  // Delete a gift
+  Future<int> deleteGift(int giftId) async {
+    final db = await _dbHelper.database;
+    return await db.delete(
+      'gifts',
+      where: 'id = ?',
+      whereArgs: [giftId],
     );
   }
 }

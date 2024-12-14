@@ -4,19 +4,21 @@ import '../models/event_model.dart';
 class EventRepository {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
 
-  Future<int> addEvent(Event event) async {
-    final db = await _dbHelper.database;
-    return await db.insert('events', event.toMap());
-  }
-
+  // Fetch events for a specific user
   Future<List<Event>> fetchEventsForUser(int userId) async {
     final db = await _dbHelper.database;
-    final List<Map<String, dynamic>> maps = await db.query(
+    final result = await db.query(
       'events',
       where: 'userId = ?',
       whereArgs: [userId],
     );
-    return maps.map((map) => Event.fromMap(map)).toList();
+    return result.map((map) => Event.fromMap(map)).toList();
+  }
+
+  // Add a new event
+  Future<int> addEvent(Event event) async {
+    final db = await _dbHelper.database;
+    return await db.insert('events', event.toMap());
   }
 
   Future<int> updateEvent(Event event) async {
