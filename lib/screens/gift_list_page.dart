@@ -24,7 +24,43 @@ class _GiftListPageState extends State<GiftListPage> {
   @override
   void initState() {
     super.initState();
+    _addSampleGifts(); // Add sample gifts for testing
     _fetchGifts();
+  }
+
+  Future<void> _addSampleGifts() async {
+    // Add sample gifts for testing
+    final sampleGifts = [
+      Gift(
+        name: "Laptop",
+        description: "A high-performance laptop.",
+        category: "Electronics",
+        price: 1200.00,
+        status: "Available",
+        eventId: 1, // Assume event ID 1 exists in the database
+      ),
+      Gift(
+        name: "Smartphone",
+        description: "The latest smartphone model.",
+        category: "Electronics",
+        price: 800.00,
+        status: "Pledged",
+        eventId: 1, // Same event ID as above
+      ),
+      Gift(
+        name: "Book",
+        description: "A best-selling novel.",
+        category: "Books",
+        price: 20.00,
+        status: "Available",
+        eventId: 2, // Assume event ID 2 exists in the database
+      ),
+    ];
+
+    for (var gift in sampleGifts) {
+      await _giftRepository.addGift(gift);
+    }
+    print("Sample gifts added for testing.");
   }
 
   Future<void> _fetchGifts() async {
@@ -32,6 +68,7 @@ class _GiftListPageState extends State<GiftListPage> {
       _isLoading = true;
     });
 
+    // Fetch all gifts for the user or friend's events
     final gifts = await _giftRepository.fetchGiftsForUser(widget.userId);
     setState(() {
       _gifts = gifts;
@@ -82,7 +119,7 @@ class _GiftListPageState extends State<GiftListPage> {
               ),
               onTap: () {
                 print('Tapped on gift: ${gift.name}');
-                // Add navigation to gift details page if needed
+                // Navigate to gift details if needed
               },
             ),
           );
