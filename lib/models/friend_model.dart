@@ -1,6 +1,6 @@
 class Friend {
-  final int userId;
-  final int friendId;
+  final String userId; // Changed to String
+  final String friendId; // Changed to String
   final String friendName;
   final String friendProfilePicture;
   final bool hasUpcomingEvents;

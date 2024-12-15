@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
+
+
 class DatabaseHelper {
   // Singleton instance
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
@@ -18,6 +20,8 @@ class DatabaseHelper {
     _database = await _initDatabase();
     return _database!;
   }
+
+
 
   // Initialize the database
   Future<Database> _initDatabase() async {
@@ -42,15 +46,15 @@ class DatabaseHelper {
   Future<void> _onCreate(Database db, int version) async {
     print("Creating tables...");
 
-    // Create users table
     await db.execute('''
     CREATE TABLE users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       email TEXT NOT NULL,
       preferences TEXT
     )
-  ''');
+    ''');
+
     print("Users table created.");
 
     // Create friends table

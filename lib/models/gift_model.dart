@@ -6,7 +6,7 @@ class Gift {
   final double price;
   final String status;
   final int? eventId;
-  final int userId; // Added userId
+  final String userId; // Changed to String
 
   Gift({
     this.id,
@@ -16,7 +16,7 @@ class Gift {
     required this.price,
     required this.status,
     this.eventId,
-    required this.userId, // Ensure userId is required
+    required this.userId,
   });
 
   Map<String, dynamic> toMap() {
@@ -28,7 +28,7 @@ class Gift {
       'price': price,
       'status': status,
       'eventId': eventId,
-      'userId': userId, // Map userId
+      'userId': userId,
     };
   }
 
@@ -41,7 +41,7 @@ class Gift {
       price: map['price'] as double,
       status: map['status'] as String,
       eventId: map['eventId'] as int?,
-      userId: map['userId'] as int, // Parse userId
+      userId: map['userId'] as String,
     );
   }
 }

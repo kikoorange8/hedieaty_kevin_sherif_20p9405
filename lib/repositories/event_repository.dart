@@ -5,7 +5,7 @@ class EventRepository {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
 
   // Fetch events for a specific user
-  Future<List<Event>> fetchEventsForUser(int userId) async {
+  Future<List<Event>> fetchEventsForUser(String userId) async {
     final db = await _dbHelper.database;
     final result = await db.query(
       'events',
@@ -21,6 +21,7 @@ class EventRepository {
     return await db.insert('events', event.toMap());
   }
 
+  // Update an existing event
   Future<int> updateEvent(Event event) async {
     final db = await _dbHelper.database;
     return await db.update(
@@ -31,6 +32,7 @@ class EventRepository {
     );
   }
 
+  // Delete an event
   Future<int> deleteEvent(int id) async {
     final db = await _dbHelper.database;
     return await db.delete(

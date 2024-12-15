@@ -5,7 +5,7 @@ class GiftRepository {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
 
   // Fetch gifts by user ID
-  Future<List<Gift>> fetchGiftsForUser(int userId) async {
+  Future<List<Gift>> fetchGiftsForUser(String userId) async {
     final db = await _dbHelper.database;
     final result = await db.rawQuery(
       'SELECT * FROM gifts WHERE eventId IN (SELECT id FROM events WHERE userId = ?)',
@@ -15,7 +15,7 @@ class GiftRepository {
   }
 
   // Fetch gifts by status
-  Future<List<Gift>> fetchGiftsByStatus({required String status, required int userId}) async {
+  Future<List<Gift>> fetchGiftsByStatus({required String status, required String userId}) async {
     final db = await _dbHelper.database;
     final result = await db.rawQuery(
       'SELECT * FROM gifts WHERE status = ? AND eventId IN (SELECT id FROM events WHERE userId = ?)',

@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "9016871080",
+    "firebase_url": "https://hedieaty-73a4d-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "hedieaty-73a4d",
+    "storage_bucket": "hedieaty-73a4d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:9016871080:android:1de4685d7e74dded3d5a9d",
+        "android_client_info": {
+          "package_name": "com.example.hedieaty_kevin_sherif_20p9405"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDFNX-I44dOsO3LKtRCw6HCAeudE6s5KKk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
