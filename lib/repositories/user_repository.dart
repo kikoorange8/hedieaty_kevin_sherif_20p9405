@@ -4,21 +4,17 @@ import '../models/user_model.dart';
 class UserRepository {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
 
-  // Create a new user
-  Future<int> addUser(User user) async {
-    final db = await _dbHelper.database;
-    return await db.insert('users', user.toMap());
+  Future<int> addUser(UserModel user) async {
+    return await _dbHelper.addUser(user);
   }
 
-  // Read all users
-  Future<List<User>> fetchUsers() async {
+  Future<List<UserModel>> fetchUsers() async {
     final db = await _dbHelper.database;
     final List<Map<String, dynamic>> maps = await db.query('users');
-    return maps.map((map) => User.fromMap(map)).toList();
+    return maps.map((map) => UserModel.fromMap(map)).toList();
   }
 
-  // Get a single user by ID
-  Future<User?> fetchUserById(String id) async {
+  Future<UserModel?> fetchUserById(String id) async {
     final db = await _dbHelper.database;
     final List<Map<String, dynamic>> maps = await db.query(
       'users',
@@ -26,30 +22,18 @@ class UserRepository {
       whereArgs: [id],
     );
     if (maps.isNotEmpty) {
-      return User.fromMap(maps.first);
-    } else {
-      return null;
+      return UserModel.fromMap(maps.first);
     }
+    return null;
   }
 
-  // Update a user
-  Future<int> updateUser(User user) async {
+  Future<int> updateUser(UserModel user) async {
     final db = await _dbHelper.database;
     return await db.update(
       'users',
       user.toMap(),
       where: 'id = ?',
       whereArgs: [user.id],
-    );
-  }
-
-  // Delete a user
-  Future<int> deleteUser(String id) async {
-    final db = await _dbHelper.database;
-    return await db.delete(
-      'users',
-      where: 'id = ?',
-      whereArgs: [id],
     );
   }
 }

@@ -1,55 +1,45 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart' as FirebaseAuth;
-import '../repositories/user_repository.dart';
-import '../models/user_model.dart';
-import 'login.dart';
-import 'home_screen.dart';
+import '../services/signup_service.dart';
 
-class SignUpPage extends StatefulWidget {
-  const SignUpPage({super.key});
+class SignupPage extends StatefulWidget {
+  const SignupPage({super.key});
 
   @override
-  State<SignUpPage> createState() => _SignUpPageState();
+  State<SignupPage> createState() => _SignupPageState();
 }
 
-class _SignUpPageState extends State<SignUpPage> {
-  final FirebaseAuth.FirebaseAuth _auth = FirebaseAuth.FirebaseAuth.instance;
-  final UserRepository _userRepository = UserRepository();
+class _SignupPageState extends State<SignupPage> {
+  final SignUpService _signupService = SignUpService();
+  final _formKey = GlobalKey<FormState>();
 
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
 
-  Future<void> _signUp() async {
-    try {
-      final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+  bool _isLoading = false;
+
+  void _signUp() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
+
+      final result = await _signupService.signUp(
+        name: _nameController.text,
+        email: _emailController.text,
+        password: _passwordController.text,
+        phoneNumber: _phoneController.text,
       );
 
-      final FirebaseAuth.User? firebaseUser = userCredential.user;
+      setState(() => _isLoading = false);
 
-      if (firebaseUser != null) {
-        final newUser = User(
-          id: firebaseUser.uid, // Firebase's UID as String
-          name: _nameController.text.trim(),
-          email: firebaseUser.email ?? '',
-          preferences: null,
-        );
-
-        await _userRepository.addUser(newUser);
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => HomeScreen(currentUserId: firebaseUser.uid),
-          ),
+      if (result) {
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Signup failed! Email or phone may already exist.")),
         );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Sign Up Failed: $e")),
-      );
     }
   }
 
@@ -57,39 +47,56 @@ class _SignUpPageState extends State<SignUpPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Sign Up")),
-      body: Padding(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(labelText: "Name"),
-            ),
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: "Email"),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: "Password"),
-              obscureText: true,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _signUp,
-              child: const Text("Sign Up"),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginPage()),
-                );
-              },
-              child: const Text("Already have an account? Login"),
-            ),
-          ],
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(labelText: "Name"),
+                validator: (value) => value!.isEmpty ? "Enter your name" : null,
+              ),
+              TextFormField(
+                controller: _emailController,
+                decoration: const InputDecoration(labelText: "Email"),
+                validator: (value) => value!.isEmpty ? "Enter your email" : null,
+              ),
+              TextFormField(
+                controller: _phoneController,
+                decoration: const InputDecoration(labelText: "Phone Number"),
+                validator: (value) => value!.isEmpty ? "Enter your phone number" : null,
+              ),
+              TextFormField(
+                controller: _passwordController,
+                decoration: const InputDecoration(labelText: "Password"),
+                obscureText: true,
+                validator: (value) => value!.length < 6 ? "Password too short" : null,
+              ),
+              TextFormField(
+                controller: _confirmPasswordController,
+                decoration: const InputDecoration(labelText: "Confirm Password"),
+                obscureText: true,
+                validator: (value) => value != _passwordController.text
+                    ? "Passwords do not match"
+                    : null,
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _signUp,
+                child: const Text("Sign Up"),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pushReplacementNamed(context, '/login');
+                },
+                child: const Text("Already have an account? Login"),
+              ),
+            ],
+          ),
         ),
       ),
     );

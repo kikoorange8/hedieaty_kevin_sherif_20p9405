@@ -9,22 +9,9 @@ class FirebaseAuthService {
         email: email,
         password: password,
       );
-      return result.user;
+      return result.user; // Return the signed-up user
     } catch (e) {
       print("Signup failed: $e");
-      return null;
-    }
-  }
-
-  Future<User?> login(String email, String password) async {
-    try {
-      UserCredential result = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      return result.user;
-    } catch (e) {
-      print("Login failed: $e");
       return null;
     }
   }

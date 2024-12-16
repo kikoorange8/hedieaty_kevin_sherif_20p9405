@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../repositories/friend_repositroy.dart';
-import '../models/friend_model.dart';
+import '../services/friend_request_service.dart';
 
 class FriendsListPage extends StatefulWidget {
   final String currentUserId;
@@ -12,43 +11,67 @@ class FriendsListPage extends StatefulWidget {
 }
 
 class _FriendsListPageState extends State<FriendsListPage> {
-  final FriendRepository _friendRepository = FriendRepository();
-  List<Friend> _friends = [];
+  final FriendRequestService _friendRequestService = FriendRequestService();
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchFriends();
-  }
+  void _showAddFriendDialog() {
+    final TextEditingController _inputController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Add Friend"),
+          content: TextField(
+            controller: _inputController,
+            decoration: const InputDecoration(labelText: "Email or Phone Number"),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () async {
+                final input = _inputController.text.trim();
+                final result = await _friendRequestService.checkUserExists(input);
+                Navigator.pop(context);
 
-  Future<void> _fetchFriends() async {
-    final friends = await _friendRepository.fetchFriends(widget.currentUserId);
-    setState(() {
-      _friends = friends;
-    });
+                if (result != null) {
+                  await _friendRequestService.sendFriendRequest(
+                    senderId: widget.currentUserId,
+                    receiverId: result['userId'],
+                    senderUsername: "YourUsernameHere", // Replace with actual username
+                  );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Friend request sent!")),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("User not found!")),
+                  );
+                }
+              },
+              child: const Text("Add"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Friends")),
-      body: _friends.isEmpty
-          ? const Center(child: Text("No friends found."))
-          : ListView.builder(
-        itemCount: _friends.length,
-        itemBuilder: (context, index) {
-          final friend = _friends[index];
-          return ListTile(
-            title: Text(friend.friendName),
-            subtitle: Text(friend.hasUpcomingEvents ? "Has upcoming events" : "No upcoming events"),
-            leading: CircleAvatar(
-              backgroundImage: NetworkImage(friend.friendProfilePicture),
-            ),
-            onTap: () {
-              // Add navigation to friend's events or gift list here
-            },
-          );
-        },
+      appBar: AppBar(
+        title: const Text("Friends List"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.person_add),
+            onPressed: _showAddFriendDialog,
+          ),
+        ],
+      ),
+      body: const Center(
+        child: Text("Friends List Screen"),
       ),
     );
   }

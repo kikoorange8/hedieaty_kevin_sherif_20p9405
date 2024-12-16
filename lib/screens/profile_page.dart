@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../repositories/user_repository.dart';
 import '../models/user_model.dart';
-import 'login.dart';
 
 class ProfilePage extends StatefulWidget {
   final String userId;
@@ -14,7 +15,9 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final UserRepository _userRepository = UserRepository();
-  late Future<User> _userFuture;
+  late Future<UserModel?> _userFuture;
+  File? _profileImage;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -22,54 +25,92 @@ class _ProfilePageState extends State<ProfilePage> {
     _userFuture = _fetchUser();
   }
 
-  Future<User> _fetchUser() async {
+  Future<UserModel?> _fetchUser() async {
+    return await _userRepository.fetchUserById(widget.userId);
+  }
+
+  Future<void> _updateField(String field, String newValue) async {
     final user = await _userRepository.fetchUserById(widget.userId);
-    if (user == null) {
-      throw Exception("User not found");
+    if (user != null) {
+      final updatedUser = user.copyWith(
+        name: field == "Name" ? newValue : null,
+        email: field == "Email" ? newValue : null,
+        phoneNumber: field == "Phone" ? newValue : null,
+      );
+      await _userRepository.updateUser(updatedUser);
+      setState(() {
+        _userFuture = Future.value(updatedUser);
+      });
     }
-    return user;
+  }
+
+  void _showEditDialog(String title, String currentValue) {
+    final controller = TextEditingController(text: currentValue);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Edit $title"),
+          content: TextField(controller: controller),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+            TextButton(
+              onPressed: () {
+                _updateField(title, controller.text);
+                Navigator.pop(context);
+              },
+              child: const Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Profile"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginPage()),
-                    (route) => false,
-              );
-            },
-          ),
-        ],
-      ),
-      body: FutureBuilder<User>(
+      appBar: AppBar(title: const Text("Profile")),
+      body: FutureBuilder<UserModel?>(
         future: _userFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
-          } else if (snapshot.hasData) {
-            final user = snapshot.data!;
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Name: ${user.name}"),
-                  Text("Email: ${user.email}"),
-                ],
-              ),
-            );
-          } else {
-            return const Center(child: Text("User not found."));
           }
+          if (!snapshot.hasData) return const Center(child: Text("User not found"));
+
+          final user = snapshot.data!;
+          return Column(
+            children: [
+              ListTile(
+                title: Text("Name: ${user.name}"),
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () => _showEditDialog("Name", user.name),
+                ),
+              ),
+              ListTile(
+                title: Text("Email: ${user.email}"),
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () => _showEditDialog("Email", user.email),
+                ),
+              ),
+              ListTile(
+                title: Text("Phone: ${user.phoneNumber}"),
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () => _showEditDialog("Phone", user.phoneNumber),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pushReplacementNamed(context, '/signup');
+                },
+                child: const Text("Logout"),
+              ),
+            ],
+          );
         },
       ),
     );

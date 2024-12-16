@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart' as FirebaseAuth;
+import '../services/login_service.dart'; // Import LoginService
 import 'home_screen.dart';
-import 'signup.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -11,30 +10,20 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final FirebaseAuth.FirebaseAuth _auth = FirebaseAuth.FirebaseAuth.instance;
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final LoginService _loginService = LoginService();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   Future<void> _login() async {
-    try {
-      final userCredential = await _auth.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+    final email = _emailController.text;
+    final password = _passwordController.text;
 
-      final FirebaseAuth.User? firebaseUser = userCredential.user;
-
-      if (firebaseUser != null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => HomeScreen(currentUserId: firebaseUser.uid),
-          ),
-        );
-      }
-    } catch (e) {
+    final user = await _loginService.login(email, password);
+    if (user != null) {
+      Navigator.pushReplacementNamed(context, '/home');
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Login Failed: $e")),
+        const SnackBar(content: Text('Login failed. Please try again.')),
       );
     }
   }
@@ -42,34 +31,21 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Login")),
+      appBar: AppBar(title: const Text('Login')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: "Email"),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: "Password"),
-              obscureText: true,
-            ),
-            const SizedBox(height: 16),
+            const Text("Email"),
+            TextField(controller: _emailController),
+            const SizedBox(height: 12),
+            const Text("Password"),
+            TextField(controller: _passwordController, obscureText: true),
+            const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _login,
               child: const Text("Login"),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const SignUpPage()),
-                );
-              },
-              child: const Text("Don't have an account? Sign Up"),
             ),
           ],
         ),

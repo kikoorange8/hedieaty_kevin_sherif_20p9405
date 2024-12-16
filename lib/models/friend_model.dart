@@ -1,15 +1,15 @@
 class Friend {
-  final String userId; // Changed to String
-  final String friendId; // Changed to String
-  final String friendName;
-  final String friendProfilePicture;
-  final bool hasUpcomingEvents;
+  final String userId; // String for Firebase UID
+  final String friendId; // String for the friend's UID
+  final String friendName; // Friend's display name
+  final String? friendProfilePicture; // Optional profile picture
+  final bool hasUpcomingEvents; // Status indicator
 
   Friend({
     required this.userId,
     required this.friendId,
     required this.friendName,
-    required this.friendProfilePicture,
+    this.friendProfilePicture,
     required this.hasUpcomingEvents,
   });
 
@@ -18,17 +18,17 @@ class Friend {
       'userId': userId,
       'friendId': friendId,
       'friendName': friendName,
-      'friendProfilePicture': friendProfilePicture,
+      'friendProfilePicture': friendProfilePicture ?? '',
       'hasUpcomingEvents': hasUpcomingEvents ? 1 : 0,
     };
   }
 
-  static Friend fromMap(Map<String, dynamic> map) {
+  factory Friend.fromMap(Map<String, dynamic> map) {
     return Friend(
       userId: map['userId'],
       friendId: map['friendId'],
       friendName: map['friendName'],
-      friendProfilePicture: map['friendProfilePicture'],
+      friendProfilePicture: map['friendProfilePicture'] ?? '',
       hasUpcomingEvents: map['hasUpcomingEvents'] == 1,
     );
   }
