@@ -1,9 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../database/database_helper.dart';
-import '../models/user_model.dart' as local_user; // Alias to avoid conflict
 
 class SignUpService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
 
   Future<bool> signUp({
@@ -13,7 +16,7 @@ class SignUpService {
     required String phoneNumber,
   }) async {
     try {
-      // 1. Register user in Firebase Authentication
+      // Create user with Firebase Authentication
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -21,26 +24,35 @@ class SignUpService {
       User? firebaseUser = userCredential.user;
 
       if (firebaseUser != null) {
-        // 2. Prepare user data for local SQLite using alias
-        final localUser = local_user.UserModel(
-          id: firebaseUser.uid, // Use Firebase UID
-          name: name,
-          email: email,
-          phoneNumber: phoneNumber,
-          preferences: '', // Empty for now
+        // Save user data in Firebase Realtime Database
+        await _dbRef.child("users").child(firebaseUser.uid).set({
+          "name": name,
+          "email": email,
+          "phoneNumber": phoneNumber,
+        });
+
+        // Save user data in SQLite (local database)
+        final db = await _dbHelper.database;
+        await db.insert(
+          'users',
+          {
+            'id': firebaseUser.uid,
+            'name': name,
+            'email': email,
+            'phoneNumber': phoneNumber,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
         );
 
-        // 3. Save user to local SQLite
-        await _dbHelper.addUser(localUser);
+        // Set default profile image in SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('profile_image_${firebaseUser.uid}', 'lib/assets/default_profile.png');
 
-        // 4. Optionally, save user data to Firebase Realtime Database
-        await firebaseUser.updateDisplayName(name);
-        return true;
+        return true; // Sign-up was successful
       }
-      return false;
     } catch (e) {
-      print("Signup failed: $e");
-      return false;
+      print("Sign-up failed: $e");
     }
+    return false;
   }
 }

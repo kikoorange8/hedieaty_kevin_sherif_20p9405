@@ -1,115 +1,142 @@
-import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import '../repositories/user_repository.dart';
-import '../models/user_model.dart';
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/fetch_user_service.dart';
+import '../services/edit_user_service.dart';
+import '../services/image_cache_service.dart';
 
 class ProfilePage extends StatefulWidget {
-  final String userId;
-
-  const ProfilePage({super.key, required this.userId});
+  const ProfilePage({super.key});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  final UserRepository _userRepository = UserRepository();
-  late Future<UserModel?> _userFuture;
-  File? _profileImage;
-  final ImagePicker _imagePicker = ImagePicker();
+  late String _userId;
+  Map<String, String?> _userDetails = {"name": "", "phoneNumber": "", "email": ""};
+  String? _profileImagePath;
+
+  final FetchUserService _fetchUserService = FetchUserService();
+  final EditUserService _editUserService = EditUserService();
+  final ImageCacheService _imageCacheService = ImageCacheService();
 
   @override
   void initState() {
     super.initState();
-    _userFuture = _fetchUser();
+    final currentUser = FirebaseAuth.instance.currentUser;
+    _userId = currentUser?.uid ?? '';
+    _loadProfileImage();
+    _fetchUserDetails();
   }
 
-  Future<UserModel?> _fetchUser() async {
-    return await _userRepository.fetchUserById(widget.userId);
+  // Load image from SharedPreferences
+  Future<void> _loadProfileImage() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _profileImagePath =
+          prefs.getString('profile_image_$_userId') ?? 'lib/assets/default_profile.png';
+    });
   }
 
+  // Fetch user details
+  Future<void> _fetchUserDetails() async {
+    final details = await _fetchUserService.fetchUserDetails(_userId);
+    setState(() {
+      _userDetails = details;
+    });
+  }
+
+  // Update user field
   Future<void> _updateField(String field, String newValue) async {
-    final user = await _userRepository.fetchUserById(widget.userId);
-    if (user != null) {
-      final updatedUser = user.copyWith(
-        name: field == "Name" ? newValue : null,
-        email: field == "Email" ? newValue : null,
-        phoneNumber: field == "Phone" ? newValue : null,
-      );
-      await _userRepository.updateUser(updatedUser);
+    await _editUserService.updateField(_userId, field, newValue);
+    _fetchUserDetails(); // Refresh details
+  }
+
+  // Update profile image
+  Future<void> _updateProfileImage() async {
+    final pickedImage = await _imageCacheService.pickImage();
+    if (pickedImage != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('profile_image_$_userId', pickedImage.path);
+
       setState(() {
-        _userFuture = Future.value(updatedUser);
+        _profileImagePath = pickedImage.path;
       });
     }
-  }
-
-  void _showEditDialog(String title, String currentValue) {
-    final controller = TextEditingController(text: currentValue);
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text("Edit $title"),
-          content: TextField(controller: controller),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-            TextButton(
-              onPressed: () {
-                _updateField(title, controller.text);
-                Navigator.pop(context);
-              },
-              child: const Text("Save"),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Profile")),
-      body: FutureBuilder<UserModel?>(
-        future: _userFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData) return const Center(child: Text("User not found"));
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            CircleAvatar(
+              radius: 60,
+              backgroundImage: _profileImagePath != null && _profileImagePath!.startsWith('lib')
+                  ? AssetImage(_profileImagePath!) as ImageProvider
+                  : FileImage(File(_profileImagePath!)),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: _updateProfileImage,
+              child: const Text("Change Profile Image"),
+            ),
+            const SizedBox(height: 20),
+            _buildStaticField("Email", _userDetails["email"] ?? "Unknown"),
+            _buildEditableField("Name", _userDetails["name"] ?? "Unknown", "name"),
+            _buildEditableField(
+                "Phone Number", _userDetails["phoneNumber"] ?? "Unknown", "phoneNumber"),
+          ],
+        ),
+      ),
+    );
+  }
 
-          final user = snapshot.data!;
-          return Column(
-            children: [
-              ListTile(
-                title: Text("Name: ${user.name}"),
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () => _showEditDialog("Name", user.name),
+  Widget _buildStaticField(String label, String value) {
+    return ListTile(
+      title: Text(label),
+      subtitle: Text(value),
+    );
+  }
+
+  Widget _buildEditableField(String label, String value, String fieldKey) {
+    final TextEditingController controller = TextEditingController(text: value);
+
+    return ListTile(
+      title: Text(label),
+      subtitle: Text(value),
+      trailing: IconButton(
+        icon: const Icon(Icons.edit),
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                title: Text("Edit $label"),
+                content: TextField(
+                  controller: controller,
+                  decoration: InputDecoration(hintText: "Enter new $label"),
                 ),
-              ),
-              ListTile(
-                title: Text("Email: ${user.email}"),
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () => _showEditDialog("Email", user.email),
-                ),
-              ),
-              ListTile(
-                title: Text("Phone: ${user.phoneNumber}"),
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () => _showEditDialog("Phone", user.phoneNumber),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pushReplacementNamed(context, '/signup');
-                },
-                child: const Text("Logout"),
-              ),
-            ],
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("Cancel"),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      await _updateField(fieldKey, controller.text.trim());
+                      Navigator.pop(context);
+                    },
+                    child: const Text("Save"),
+                  ),
+                ],
+              );
+            },
           );
         },
       ),

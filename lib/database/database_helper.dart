@@ -20,11 +20,34 @@ class DatabaseHelper {
     final path = join(dbPath, 'hedieaty.db');
     return await openDatabase(
       path,
-      version: 3, // Incremented version to trigger the upgrade
+      version: 4, // Increment this version number
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
   }
+
+  Future<int> updateUserProfileImage(String userId, String imageUrl) async {
+    final db = await database;
+
+    // Update the profile image URL in the SQLite database
+    return await db.update(
+      'users',
+      {'profileImage': imageUrl},
+      where: 'id = ?',
+      whereArgs: [userId],
+    );
+  }
+
+  Future<int> updateUser(UserModel user) async {
+    final db = await database;
+    return await db.update(
+      'users',
+      user.toMap(),
+      where: 'id = ?',
+      whereArgs: [user.id],
+    );
+  }
+
 
   Future<void> deleteDatabaseFile() async {
     final dbPath = await getDatabasesPath();
@@ -37,14 +60,15 @@ class DatabaseHelper {
     print("Creating tables...");
 
     await db.execute('''
-      CREATE TABLE users (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        email TEXT NOT NULL,
-        phoneNumber TEXT NOT NULL,
-        preferences TEXT
-      )
+    CREATE TABLE users (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      phoneNumber TEXT NOT NULL,
+      preferences TEXT
+    )
     ''');
+
 
     await db.execute('''
       CREATE TABLE friends (
@@ -86,15 +110,25 @@ class DatabaseHelper {
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     print("Upgrading database from version $oldVersion to $newVersion...");
 
-    if (oldVersion < 3) {
-      // Add the phoneNumber column to the users table
-      await db.execute('ALTER TABLE users ADD COLUMN phoneNumber TEXT DEFAULT ""');
-      print("Added 'phoneNumber' column to 'users' table.");
+    if (oldVersion < 4) { // Increment database version to 4
+      await db.execute('ALTER TABLE users ADD COLUMN profileImage TEXT DEFAULT ""');
+      print("Added 'profileImage' column to 'users' table.");
     }
   }
 
+
+
   Future<int> addUser(UserModel user) async {
-    final db = await database;
-    return await db.insert('users', user.toMap());
+    try {
+      print("Inserting user into SQLite: ${user.toMap()}");
+      final db = await database;
+      final result = await db.insert('users', user.toMap());
+      print("SQLite insert result: $result");
+      return result;
+    } catch (e) {
+      print("SQLite error during addUser: $e");
+      return -1; // Return -1 to indicate failure
+    }
   }
+
 }

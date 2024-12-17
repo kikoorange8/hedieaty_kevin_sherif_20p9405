@@ -10,10 +10,9 @@ class UserModel {
     required this.name,
     required this.email,
     required this.phoneNumber,
-    this.preferences = '',
+    required this.preferences,
   });
 
-  // Convert UserModel to Map for SQLite
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -24,7 +23,6 @@ class UserModel {
     };
   }
 
-  // Create UserModel from Map
   factory UserModel.fromMap(Map<String, dynamic> map) {
     return UserModel(
       id: map['id'],
@@ -35,19 +33,17 @@ class UserModel {
     );
   }
 
-  // copyWith method for immutability
   UserModel copyWith({
     String? name,
     String? email,
     String? phoneNumber,
-    String? preferences,
   }) {
     return UserModel(
       id: id,
       name: name ?? this.name,
       email: email ?? this.email,
       phoneNumber: phoneNumber ?? this.phoneNumber,
-      preferences: preferences ?? this.preferences,
+      preferences: preferences,
     );
   }
 }
