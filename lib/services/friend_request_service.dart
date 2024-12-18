@@ -3,46 +3,64 @@ import 'package:firebase_database/firebase_database.dart';
 class FriendRequestService {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
-  Future<Map<String, dynamic>?> checkUserExists(String input) async {
-    final snapshot = await _dbRef.child("users").orderByChild("email").equalTo(input).get();
-
-    if (!snapshot.exists) {
-      final phoneSnapshot = await _dbRef.child("users").orderByChild("phoneNumber").equalTo(input).get();
-      if (phoneSnapshot.exists) {
-        return Map<String, dynamic>.from(phoneSnapshot.value as Map);
-      }
-      return null;
-    }
-
-    return Map<String, dynamic>.from(snapshot.value as Map);
-  }
-
+  // Send a friend request
   Future<void> sendFriendRequest({
-    required String senderId,
-    required String receiverId,
-    required String senderUsername,
+    required String currentUserId,
+    required String phoneNumber,
   }) async {
-    await _dbRef.child("friend_requests/$receiverId/$senderId").set({
-      "username": senderUsername,
-      "status": "pending",
-    });
+    final userSnapshot = await _dbRef.child("users").orderByChild("phoneNumber").equalTo(phoneNumber).get();
+
+    if (!userSnapshot.exists) throw Exception("User not found.");
+
+    final Map<String, dynamic> users = Map<String, dynamic>.from(userSnapshot.value as Map);
+    final targetUserId = users.keys.first;
+
+    if (targetUserId == currentUserId) throw Exception("You cannot send a request to yourself.");
+
+    await _dbRef.child("users/$currentUserId/outgoingRequests").child(targetUserId).set(true);
+    await _dbRef.child("users/$targetUserId/incomingRequests").child(currentUserId).set(true);
   }
 
-  Future<void> acceptFriendRequest({
-    required String senderId,
-    required String receiverId,
-    required String senderUsername,
-    required String receiverUsername,
-  }) async {
-    // Remove the request
-    await _dbRef.child("friend_requests/$receiverId/$senderId").remove();
+  // Fetch incoming friend requests
+  Future<List<Map<String, String>>> getIncomingRequests(String userId) async {
+    final snapshot = await _dbRef.child("users/$userId/incomingRequests").get();
 
-    // Add to Firebase friends table
-    await _dbRef.child("friends/$receiverId/$senderId").set({"username": senderUsername});
-    await _dbRef.child("friends/$senderId/$receiverId").set({"username": receiverUsername});
+    if (!snapshot.exists) return [];
+
+    List<Map<String, String>> requests = [];
+    final incomingRequests = Map<String, dynamic>.from(snapshot.value as Map);
+
+    for (String requestUserId in incomingRequests.keys) {
+      final userSnapshot = await _dbRef.child("users/$requestUserId").get();
+
+      if (userSnapshot.exists) {
+        final userData = Map<String, dynamic>.from(userSnapshot.value as Map);
+        requests.add({
+          "uid": requestUserId,
+          "name": userData["name"] ?? "Unknown",
+          "email": userData["email"] ?? "Unknown",
+          "phoneNumber": userData["phoneNumber"] ?? "Unknown",
+        });
+      }
+    }
+    return requests;
   }
 
-  Future<void> denyFriendRequest({required String senderId, required String receiverId}) async {
-    await _dbRef.child("friend_requests/$receiverId/$senderId").remove();
+  // Accept a friend request
+  Future<void> acceptFriendRequest(String currentUserId, String senderId) async {
+    // Add to friends list
+    await _dbRef.child("users/$currentUserId/friends").child(senderId).set(true);
+    await _dbRef.child("users/$senderId/friends").child(currentUserId).set(true);
+
+    // Remove from incoming and outgoing requests
+    await _dbRef.child("users/$currentUserId/incomingRequests").child(senderId).remove();
+    await _dbRef.child("users/$senderId/outgoingRequests").child(currentUserId).remove();
+  }
+
+  // Decline a friend request
+  Future<void> declineFriendRequest(String currentUserId, String senderId) async {
+    // Remove the friend request
+    await _dbRef.child("users/$currentUserId/incomingRequests").child(senderId).remove();
+    await _dbRef.child("users/$senderId/outgoingRequests").child(currentUserId).remove();
   }
 }
