@@ -67,6 +67,12 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  // Logout user
+  Future<void> _logout() async {
+    await FirebaseAuth.instance.signOut();
+    Navigator.pushReplacementNamed(context, '/login'); // Navigate to LoginPage
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -91,6 +97,14 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildEditableField("Name", _userDetails["name"] ?? "Unknown", "name"),
             _buildEditableField(
                 "Phone Number", _userDetails["phoneNumber"] ?? "Unknown", "phoneNumber"),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _logout,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white, // Set logout button color to red
+              ),
+              child: const Text("Logout"),
+            ),
           ],
         ),
       ),

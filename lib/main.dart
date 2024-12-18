@@ -1,24 +1,19 @@
 import 'package:flutter/material.dart';
 // Firebase
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hedieaty_kevin_sherif_20p9405/screens/home_screen.dart';
 import 'package:hedieaty_kevin_sherif_20p9405/screens/login.dart';
+import 'package:hedieaty_kevin_sherif_20p9405/screens/signup.dart';
 import 'firebase_options.dart';
-// sql database
+// SQL database
 import 'database/database_helper.dart';
-// Screens
-import 'screens/signup.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
-  // Delete the database
-  await DatabaseHelper.instance.deleteDatabaseFile();
-
   runApp(const MyApp());
 }
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -31,13 +26,27 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.deepPurple,
         useMaterial3: true,
       ),
-      // Define routes
+      home: AuthWrapper(), // Wrapper to handle login state
       routes: {
-        '/': (context) => const SignupPage(),
         '/login': (context) => const LoginPage(),
+        '/signup': (context) => const SignupPage(),
         '/home': (context) => const HomeScreen(currentUserId: ''),
       },
-      initialRoute: '/', // Starting page
     );
+  }
+}
+
+class AuthWrapper extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser != null) {
+      // User is signed in, navigate to HomeScreen
+      return HomeScreen(currentUserId: currentUser.uid);
+    } else {
+      // No user is signed in, navigate to SignupPage
+      return const SignupPage();
+    }
   }
 }

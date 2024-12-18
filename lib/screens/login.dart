@@ -20,13 +20,30 @@ class _LoginPageState extends State<LoginPage> {
 
     final user = await _loginService.login(email, password);
     if (user != null) {
-      Navigator.pushReplacementNamed(context, '/home');
+      try {
+        // Call handleLogin to ensure the user is in the local database
+        await _loginService.handleLogin(user.uid);
+
+        // Navigate to the home screen after successful login and local user sync
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => HomeScreen(currentUserId: user.uid),
+          ),
+        );
+      } catch (e) {
+        print("Error during local sync: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error syncing user data: $e")),
+        );
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Login failed. Please try again.')),
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

@@ -66,43 +66,42 @@ class DatabaseHelper {
       email TEXT NOT NULL,
       phoneNumber TEXT NOT NULL,
       preferences TEXT
+    );
+
+    ''');
+
+
+    await db.execute('''
+    CREATE TABLE friends (
+      userId TEXT NOT NULL,
+      friendId TEXT NOT NULL,
+      PRIMARY KEY (userId, friendId)
     )
     ''');
 
 
     await db.execute('''
-      CREATE TABLE friends (
-        userId TEXT NOT NULL,
-        friendId TEXT NOT NULL,
-        friendName TEXT NOT NULL,
-        friendProfilePicture TEXT,
-        hasUpcomingEvents INTEGER NOT NULL,
-        PRIMARY KEY (userId, friendId)
-      )
-    ''');
-
-    await db.execute('''
       CREATE TABLE events (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        date TEXT NOT NULL,
-        location TEXT,
-        description TEXT,
-        userId TEXT NOT NULL,
-        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+       id TEXT PRIMARY KEY,
+       name TEXT,
+       date TEXT,
+       location TEXT,
+       description TEXT,
+       userId TEXT,
+       published INTEGER DEFAULT 0 -- 0 for not published, 1 for published
       )
     ''');
 
     await db.execute('''
       CREATE TABLE gifts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        description TEXT NOT NULL,
-        category TEXT NOT NULL,
-        price REAL NOT NULL,
-        status TEXT NOT NULL,
-        eventId INTEGER NOT NULL,
-        FOREIGN KEY (eventId) REFERENCES events(id) ON DELETE CASCADE
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        description TEXT,
+        category TEXT,
+        price REAL,
+        status TEXT, -- available, pledged
+        eventId TEXT NULL, -- event association
+        FOREIGN KEY (eventId) REFERENCES events(id)
       )
     ''');
   }
