@@ -1,3 +1,5 @@
+import 'package:sqflite/sqflite.dart';
+
 import '../database/database_helper.dart';
 import '../models/user_model.dart';
 
@@ -36,4 +38,59 @@ class UserRepository {
       whereArgs: [user.id],
     );
   }
+
+  // Add or update user details
+  Future<int> addOrUpdateUser({
+    required String userId,
+    required String name,
+    required String email,
+    required String phoneNumber,
+    required String preferences,
+  }) async {
+    final db = await _dbHelper.database;
+    return await db.insert(
+      'users',
+      {
+        'id': userId,
+        'name': name,
+        'email': email,
+        'phoneNumber': phoneNumber,
+        'preferences': preferences,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+
+
+
+  // Check if a user exists in the local database
+  Future<bool> isUserInLocalDatabase(String userId) async {
+    final db = await _dbHelper.database;
+    final result = await db.query(
+      'users',
+      where: 'id = ?',
+      whereArgs: [userId],
+    );
+    return result.isNotEmpty; // Returns true if the user exists
+  }
+
+  // Add or update user details
+  Future<void> addUserIfNotExists(Map<String, dynamic> userData) async {
+    final db = await _dbHelper.database;
+
+    // Check if user already exists
+    final exists = await isUserInLocalDatabase(userData['id']);
+    if (!exists) {
+      await db.insert(
+        'users',
+        userData,
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
+      print("User added to SQLite: ${userData['name']}");
+    } else {
+      print("User already exists in SQLite.");
+    }
+  }
+
 }
