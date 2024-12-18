@@ -304,11 +304,13 @@ class _EventListPageState extends State<EventListPage> {
           _buildSortOptions(), // Dropdown for sorting options
         ],
       ),
+
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _events.isEmpty
           ? const Center(child: Text("No events found."))
           : ListView.builder(
+        padding: const EdgeInsets.all(8.0),
         itemCount: _events.length,
         itemBuilder: (context, index) {
           final event = _events[index];
@@ -316,7 +318,7 @@ class _EventListPageState extends State<EventListPage> {
           final statusColor = _getEventStatusColor(status);
 
           return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            margin: const EdgeInsets.symmetric(vertical: 4),
             child: ListTile(
               title: Text(event.name),
               subtitle: Text(
@@ -325,20 +327,25 @@ class _EventListPageState extends State<EventListPage> {
                     "Published: ${event.published == 1 ? "Yes" : "No"}",
               ),
               trailing: Row(
-                mainAxisSize: MainAxisSize.min, // Ensure row takes only as much space as needed
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Publish Button
+                  Text(
+                    status,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   IconButton(
                     icon: Icon(
                       Icons.cloud_upload,
-                      color: event.published == 1 ? Colors.blue : Colors.grey, // Blue if published, grey if not
+                      color: event.published == 1 ? Colors.blue : Colors.grey,
                     ),
                     onPressed: () async {
                       if (event.published == 1) {
-                        // Unpublish the event
                         await _publishService.unpublishEvent(event);
                       } else {
-                        // Publish the event
                         await _publishService.publishEvent(event);
                       }
                       _loadEvents(); // Reload events to update UI
@@ -347,15 +354,15 @@ class _EventListPageState extends State<EventListPage> {
                   ),
                 ],
               ),
-
-
-              onTap: () => _editEvent(event), // Open edit dialog
+              onTap: () => _editEvent(event),
             ),
           );
-
-
         },
       ),
+
+
+
+
       floatingActionButton: FloatingActionButton(
         onPressed: _createEvent,
         child: const Icon(Icons.add),

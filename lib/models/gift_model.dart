@@ -5,8 +5,9 @@ class Gift {
   final String category;
   final double price;
   final String status;
-  final int? eventId;
-  final String userId; // Changed to String
+  final String? eventId; // Change to String?
+  final String userId;
+  final String? image;
 
   Gift({
     this.id,
@@ -15,8 +16,9 @@ class Gift {
     required this.category,
     required this.price,
     required this.status,
-    this.eventId,
+    this.eventId, // Optional event ID
     required this.userId,
+    this.image,
   });
 
   Map<String, dynamic> toMap() {
@@ -27,8 +29,9 @@ class Gift {
       'category': category,
       'price': price,
       'status': status,
-      'eventId': eventId,
+      'eventId': eventId, // String
       'userId': userId,
+      'image': image,
     };
   }
 
@@ -40,8 +43,9 @@ class Gift {
       category: map['category'] as String,
       price: map['price'] as double,
       status: map['status'] as String,
-      eventId: map['eventId'] as int?,
+      eventId: map['eventId'] as String?, // Updated
       userId: map['userId'] as String,
+      image: map['image'] as String?,
     );
   }
 }

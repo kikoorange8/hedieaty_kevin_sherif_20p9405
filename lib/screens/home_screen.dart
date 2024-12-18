@@ -48,7 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final List<Widget> _pages = [
       FriendsListPage(currentUserId: widget.currentUserId),
       EventListPage(currentUserId: widget.currentUserId),
-      GiftListPage(userId: widget.currentUserId, isCurrentUser: true),
+      GiftListPage(currentUserId: widget.currentUserId),
       PledgedGiftPage(currentUserId: widget.currentUserId),
       const ProfilePage(),
     ];

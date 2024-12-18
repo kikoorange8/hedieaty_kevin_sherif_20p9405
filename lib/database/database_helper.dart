@@ -20,11 +20,12 @@ class DatabaseHelper {
     final path = join(dbPath, 'hedieaty.db');
     return await openDatabase(
       path,
-      version: 4, // Increment this version number
+      version: 6, // Increment this version number
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
   }
+
 
   Future<int> updateUserProfileImage(String userId, String imageUrl) async {
     final db = await database;
@@ -93,25 +94,26 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
-      CREATE TABLE gifts (
-        id TEXT PRIMARY KEY,
-        name TEXT,
-        description TEXT,
-        category TEXT,
-        price REAL,
-        status TEXT, -- available, pledged
-        eventId TEXT NULL, -- event association
-        FOREIGN KEY (eventId) REFERENCES events(id)
-      )
+    CREATE TABLE gifts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      category TEXT,
+      price REAL NOT NULL,
+      status TEXT NOT NULL, -- "Available" or "Pledged"
+      eventId INTEGER, -- Nullable, associated with an event
+      userId TEXT NOT NULL, -- User ID who created the gift
+      image TEXT -- Base64-encoded image string
+    )
     ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     print("Upgrading database from version $oldVersion to $newVersion...");
 
-    if (oldVersion < 4) { // Increment database version to 4
-      await db.execute('ALTER TABLE users ADD COLUMN profileImage TEXT DEFAULT ""');
-      print("Added 'profileImage' column to 'users' table.");
+    if (oldVersion < 6) { // Increment database version to 4
+      await db.execute('ALTER TABLE gifts ADD COLUMN userId TEXT NOT NULL DEFAULT ""');
+      print("Added 'userId' column to 'gifts' table.");
     }
   }
 

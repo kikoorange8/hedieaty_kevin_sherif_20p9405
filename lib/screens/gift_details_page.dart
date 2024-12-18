@@ -1,128 +1,108 @@
 import 'package:flutter/material.dart';
 import '../models/gift_model.dart';
-import '../repositories/gift_repository.dart';
+import '../services/gift_list_service.dart';
 
 class GiftDetailsPage extends StatefulWidget {
-  final Gift gift;
-  final bool isCurrentUser;
+  final String currentUserId;
+  final Gift? gift;
 
-  const GiftDetailsPage({
-    super.key,
-    required this.gift,
-    required this.isCurrentUser,
-  });
+  const GiftDetailsPage({super.key, required this.currentUserId, this.gift});
 
   @override
   State<GiftDetailsPage> createState() => _GiftDetailsPageState();
 }
 
 class _GiftDetailsPageState extends State<GiftDetailsPage> {
-  final GiftRepository _giftRepository = GiftRepository();
+  final GiftListService _giftService = GiftListService();
 
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _categoryController = TextEditingController();
-  final TextEditingController _priceController = TextEditingController();
+  late TextEditingController _nameController;
+  late TextEditingController _descriptionController;
+  late TextEditingController _categoryController;
+  late TextEditingController _priceController;
+
+  bool _isPledged = false;
 
   @override
   void initState() {
     super.initState();
-    // Pre-fill controllers with existing gift details
-    _nameController.text = widget.gift.name;
-    _descriptionController.text = widget.gift.description;
-    _categoryController.text = widget.gift.category;
-    _priceController.text = widget.gift.price.toString();
+    _nameController = TextEditingController(text: widget.gift?.name ?? '');
+    _descriptionController = TextEditingController(text: widget.gift?.description ?? '');
+    _categoryController = TextEditingController(text: widget.gift?.category ?? '');
+    _priceController = TextEditingController(text: widget.gift?.price.toString() ?? '');
+    _isPledged = widget.gift?.status == "Pledged";
   }
 
-  Future<void> _pledgeGift() async {
-    if (widget.gift.status == "Pledged") {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("This gift is already pledged!")),
-      );
-      return;
-    }
-
-    final updatedGift = Gift(
-      id: widget.gift.id,
-      name: widget.gift.name,
-      description: widget.gift.description,
-      category: widget.gift.category,
-      price: widget.gift.price,
-      status: "Pledged", // Update status to pledged
-      eventId: widget.gift.eventId,
-      userId: widget.gift.userId,
-    );
-
-    await _giftRepository.updateGift(updatedGift);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Gift pledged successfully!")),
-    );
-
-    setState(() {
-      // Refresh the UI
-    });
-  }
-
-  Future<void> _updateGift() async {
-    final updatedGift = Gift(
-      id: widget.gift.id,
+  void _saveGift() async {
+    final newGift = Gift(
+      id: widget.gift?.id,
       name: _nameController.text,
       description: _descriptionController.text,
       category: _categoryController.text,
-      price: double.tryParse(_priceController.text) ?? widget.gift.price,
-      status: widget.gift.status, // Keep the existing status
-      eventId: widget.gift.eventId,
-      userId: widget.gift.userId,
+      price: double.tryParse(_priceController.text) ?? 0.0,
+      status: _isPledged ? "Pledged" : "Available",
+      userId: widget.currentUserId,
     );
 
-    await _giftRepository.updateGift(updatedGift);
+    if (widget.gift == null) {
+      await _giftService.addGift(newGift);
+    } else {
+      await _giftService.updateGift(newGift);
+    }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Gift updated successfully!")),
-    );
+    Navigator.pop(context);
+  }
 
-    setState(() {
-      // Update the UI
-    });
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _categoryController.dispose();
+    _priceController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Gift Details"),
+        title: Text(widget.gift == null ? "Add Gift" : "Edit Gift"),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(labelText: "Gift Name"),
-              enabled: widget.isCurrentUser,
             ),
             TextField(
               controller: _descriptionController,
-              decoration: const InputDecoration(labelText: "Gift Description"),
-              enabled: widget.isCurrentUser,
+              decoration: const InputDecoration(labelText: "Description"),
             ),
             TextField(
               controller: _categoryController,
-              decoration: const InputDecoration(labelText: "Gift Category"),
-              enabled: widget.isCurrentUser,
+              decoration: const InputDecoration(labelText: "Category"),
             ),
             TextField(
               controller: _priceController,
-              decoration: const InputDecoration(labelText: "Gift Price"),
               keyboardType: TextInputType.number,
-              enabled: widget.isCurrentUser,
+              decoration: const InputDecoration(labelText: "Price"),
+            ),
+            SwitchListTile(
+              title: const Text("Pledged"),
+              value: _isPledged,
+              onChanged: widget.gift?.status == "Pledged"
+                  ? null
+                  : (value) {
+                setState(() {
+                  _isPledged = value;
+                });
+              },
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: widget.isCurrentUser ? _updateGift : _pledgeGift,
-              child: Text(widget.isCurrentUser ? "Update Gift" : "Pledge Gift"),
+              onPressed: _saveGift,
+              child: const Text("Save"),
             ),
           ],
         ),
