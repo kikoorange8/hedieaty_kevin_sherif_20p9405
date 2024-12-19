@@ -5,7 +5,8 @@ import '../services/publish_event_service.dart';
 import '../repositories/event_repository.dart';
 import '../models/event_model.dart';
 import '../repositories/gift_repository.dart';
-
+import 'dart:io';
+import 'package:firebase_database/firebase_database.dart';
 
 class EventListPage extends StatefulWidget {
   final String currentUserId;
@@ -44,6 +45,49 @@ class _EventListPageState extends State<EventListPage> {
       _isLoading = false;
     });
   }
+
+  Future<bool> checkInternetConnection() async {
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> hasPledgedGifts(String userId, String eventId) async {
+    final DatabaseReference eventRef = FirebaseDatabase.instance.ref('events/$userId/$eventId/gifts');
+
+    try {
+      // Fetch data from Firebase
+      final snapshot = await eventRef.get();
+      print("Snapshot fetched for userId $userId, eventId $eventId: ${snapshot.value}");
+
+      if (snapshot.exists) {
+        final gifts = snapshot.value as Map<dynamic, dynamic>;
+        print("Gifts for userId $userId, eventId $eventId: $gifts");
+
+        // Check each gift for "Pledged" status
+        for (var giftKey in gifts.keys) {
+          final gift = gifts[giftKey];
+          print("Gift ID: $giftKey, Data: $gift");
+
+          if (gift['status'] == 'Pledged') {
+            print("Gift with ID $giftKey is pledged.");
+            return true; // Found a pledged gift
+          }
+        }
+      } else {
+        print("No gifts found for userId $userId, eventId $eventId.");
+      }
+    } catch (e) {
+      print("Error checking pledged gifts for userId $userId, eventId $eventId: $e");
+    }
+
+    print("No pledged gifts found for userId $userId, eventId $eventId.");
+    return false; // No pledged gifts found
+  }
+
 
   int _sortEvents(Event a, Event b) {
     if (_sortBy == 'date') {
@@ -181,10 +225,30 @@ class _EventListPageState extends State<EventListPage> {
 
 
   Future<void> _editEvent(Event event) async {
+    if (event.published == 1) {
+      // Check for internet connection
+      final isConnected = await checkInternetConnection();
+      if (!isConnected) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("You must be connected to the internet to edit published events.")),
+        );
+        return;
+      }else{
+        print("has internet connection and published check if it has pledged gifts");
+        final hasPledged = await hasPledgedGifts(widget.currentUserId, event.id);
+        if (hasPledged) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Cannot edit or delete an event with pledged gifts.")),
+          );
+          return;
+        }
+      }
+    }
+
+    // Proceed with the edit logic
     final TextEditingController nameController = TextEditingController(text: event.name);
     final TextEditingController locationController = TextEditingController(text: event.location);
-    final TextEditingController descriptionController =
-    TextEditingController(text: event.description);
+    final TextEditingController descriptionController = TextEditingController(text: event.description);
     DateTime selectedDate = DateTime.parse(event.date);
 
     await showDialog(
@@ -277,6 +341,7 @@ class _EventListPageState extends State<EventListPage> {
     );
   }
 
+
   Widget _buildSortOptions() {
     return DropdownButton<String>(
       value: _sortBy,
@@ -348,15 +413,47 @@ class _EventListPageState extends State<EventListPage> {
                     ),
                     onPressed: () async {
                       if (event.published == 1) {
+                        // Check for internet connection before unpublishing
+                        final isConnected = await checkInternetConnection();
+                        if (!isConnected) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("You need to be connected to the internet to unpublish this event.")),
+                          );
+                          return;
+                        }
+
+                        // Check if the event has pledged gifts
+                        final hasPledged = await hasPledgedGifts(widget.currentUserId, event.id);
+                        if (hasPledged) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Cannot unpublish this event because it has pledged gifts.")),
+                          );
+                          return;
+                        }
+                        // Unpublish the event
                         await _publishService.unpublishEvent(event);
                       } else {
+                        // Check for internet connection before publishing
+                        final isConnected = await checkInternetConnection();
+                        if (!isConnected) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("You need to be connected to the internet to publish this event.")),
+                          );
+                          return;
+                        }
+
+                        // Publish the event
                         await _publishService.publishEvent(event);
 
-                        // Call addGiftsForEvent with the correct userId and eventId
-                        await PublishEventService().addGiftsForEvent(widget.currentUserId, event.id);
+                        // Add gifts for the published event to Firebase
+                        await _publishService.addGiftsForEvent(widget.currentUserId, event.id);
                       }
-                      _loadEvents(); // Reload events to update UI
+
+                      // Reload events to update UI
+                      _loadEvents();
                     },
+
+
                     tooltip: event.published == 1 ? "Unpublish Event" : "Publish to Cloud",
                   ),
 
