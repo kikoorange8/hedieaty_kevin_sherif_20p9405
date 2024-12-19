@@ -217,29 +217,48 @@ class _GiftListPageState extends State<GiftListPage> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            // Edit Button
                             IconButton(
                               icon: Icon(
                                 Icons.edit,
                                 color: gift.status == "Pledged" ? Colors.grey : Colors.blue,
                               ),
-                              onPressed: gift.status == "Pledged"
-                                  ? null
-                                  : () => _showAddEditDialog(gift: gift),
+                              onPressed: () {
+                                if (gift.status == "Pledged") {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("Cannot edit a pledged gift."),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                } else {
+                                  _showAddEditDialog(gift: gift);
+                                }
+                              },
                             ),
+                            // Delete Button
                             IconButton(
                               icon: Icon(
                                 Icons.delete,
                                 color: gift.status == "Pledged" ? Colors.grey : Colors.red,
                               ),
-                              onPressed: gift.status == "Pledged"
-                                  ? null
-                                  : () async {
-                                await _giftService.deleteGift(gift.id);
-                                _loadGifts();
+                              onPressed: () async {
+                                if (gift.status == "Pledged") {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("Cannot delete a pledged gift."),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                } else {
+                                  await _giftService.deleteGift(gift.id);
+                                  _loadGifts();
+                                }
                               },
                             ),
                           ],
                         ),
+
                       ),
                     );
                   },
