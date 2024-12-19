@@ -1,23 +1,17 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import '../models/event_model.dart';
+import 'package:hedieaty_kevin_sherif_20p9405/widgets/gift_add_edit_widget.dart';
 import '../models/gift_model.dart';
+import '../models/event_model.dart';
 import '../services/gift_list_service.dart';
 import '../repositories/event_repository.dart';
-import 'package:image/image.dart' as img;
-import 'package:collection/collection.dart';
-
 
 class GiftListPage extends StatefulWidget {
   final String currentUserId;
-  final bool isCurrentUser;
 
   const GiftListPage({
     super.key,
     required this.currentUserId,
-    this.isCurrentUser = false,
   });
 
   @override
@@ -26,217 +20,197 @@ class GiftListPage extends StatefulWidget {
 
 class _GiftListPageState extends State<GiftListPage> {
   final GiftListService _giftService = GiftListService();
-  final EventRepository _eventRepository = EventRepository();
+  final EventRepository _eventRepository = EventRepository(); // Instantiate EventRepository
 
-  bool _isLoading = true; // Loading flag
-  List<Gift> _gifts = []; // List of gifts
-  File? _selectedImage;
-  String? _base64Image;
+  bool _isLoading = true;
+  List<Gift> _gifts = [];
   List<Event> _events = [];
+  String _sortCriteria = "name";
+  Event? _selectedEvent;
 
   @override
   void initState() {
     super.initState();
     _loadGifts();
-    _fetchEvents();
+    _loadEvents();
   }
 
   Future<void> _loadGifts() async {
     setState(() => _isLoading = true);
-
     try {
-      // Fetch gifts from the service
-      final gifts = await _giftService.fetchGifts(widget.currentUserId, "");
-      setState(() {
-        _gifts = gifts; // Update the gift list
-      });
+      final gifts = await _giftService.getAllGifts(widget.currentUserId);
+      setState(() => _gifts = gifts);
     } catch (e) {
       print("Error loading gifts: $e");
-      setState(() {
-        _gifts = []; // Ensure _gifts is empty if there's an error
-      });
+      setState(() => _gifts = []);
     } finally {
-      setState(() => _isLoading = false); // Stop loading indicator
+      setState(() => _isLoading = false);
     }
   }
 
-
-  Future<void> _fetchEvents() async {
-    final events = await _eventRepository.fetchEventsForUser(widget.currentUserId);
-    setState(() => _events = events);
+  Future<void> _loadEvents() async {
+    try {
+      final events = await _eventRepository.fetchEventsForUser(widget.currentUserId); // Use the existing method
+      setState(() => _events = events);
+    } catch (e) {
+      print("Error loading events: $e");
+    }
   }
 
-  Future<void> _editGift(Gift gift) async {
-    final nameController = TextEditingController(text: gift.name);
-    final descriptionController = TextEditingController(text: gift.description);
-    final categoryController = TextEditingController(text: gift.category);
-    final priceController = TextEditingController(text: gift.price.toString());
-    Event? selectedEvent = _events.firstWhereOrNull((e) => e.id == gift.eventId);
-
-
-
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text("Edit Gift"),
-              content: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    TextField(controller: nameController, decoration: const InputDecoration(labelText: "Gift Name")),
-                    TextField(controller: descriptionController, decoration: const InputDecoration(labelText: "Description")),
-                    TextField(controller: categoryController, decoration: const InputDecoration(labelText: "Category")),
-                    TextField(controller: priceController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Price")),
-                    const SizedBox(height: 10),
-                    DropdownButton<Event>(
-                      isExpanded: true,
-                      value: selectedEvent,
-                      hint: const Text("Assign to Event"),
-                      items: _events.map((event) {
-                        return DropdownMenuItem<Event>(
-                          value: event,
-                          child: Text(event.name),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setDialogState(() => selectedEvent = value);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-                TextButton(
-                  onPressed: () async {
-                    if (nameController.text.isEmpty || priceController.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Name and Price are required.")));
-                      return;
-                    }
-
-                    final updatedGift = Gift(
-                      id: gift.id,
-                      name: nameController.text,
-                      description: descriptionController.text,
-                      category: categoryController.text,
-                      price: double.parse(priceController.text),
-                      status: gift.status,
-                      eventId: selectedEvent?.id,
-                      userId: widget.currentUserId,
-                      image: gift.image,
-                    );
-
-                    await _giftService.updateGift(updatedGift);
-                    Navigator.pop(context);
-                    _loadGifts();
-                  },
-                  child: const Text("Save"),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
+  void _sortGifts() {
+    setState(() {
+      if (_sortCriteria == "name") {
+        _gifts.sort((a, b) => a.name.compareTo(b.name));
+      } else if (_sortCriteria == "status") {
+        _gifts.sort((a, b) => a.status.compareTo(b.status));
+      } else if (_sortCriteria == "event") {
+        _gifts.sort((a, b) => (a.eventId ?? 0).compareTo(b.eventId ?? 0));
+      } else if (_sortCriteria == "pledged") {
+        _gifts.sort((a, b) => a.status == "Pledged" ? -1 : 1);
+      }
+    });
   }
 
-  Future<void> _addGiftDialog() async {
-    final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final categoryController = TextEditingController();
-    final priceController = TextEditingController();
-    Event? selectedEvent;
+  void _filterGiftsByEvent(Event? event) {
+    setState(() {
+      _selectedEvent = event;
+      if (event != null) {
+        _gifts = _gifts.where((gift) => gift.eventId == int.tryParse(event.id)).toList();
+      } else {
+        _loadGifts(); // Reload all gifts if no event is selected
+      }
+    });
+  }
 
-    await showDialog(
+  void _showAddEditDialog({Gift? gift}) {
+    showDialog(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text("Add New Gift"),
-              content: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    TextField(controller: nameController, decoration: const InputDecoration(labelText: "Gift Name")),
-                    TextField(controller: descriptionController, decoration: const InputDecoration(labelText: "Description")),
-                    TextField(controller: categoryController, decoration: const InputDecoration(labelText: "Category")),
-                    TextField(controller: priceController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Price")),
-                    DropdownButton<Event>(
-                      isExpanded: true,
-                      value: selectedEvent,
-                      hint: const Text("Assign to Event"),
-                      items: _events.map((event) {
-                        return DropdownMenuItem<Event>(
-                          value: event,
-                          child: Text(event.name),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setDialogState(() => selectedEvent = value);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-                TextButton(
-                  onPressed: () async {
-                    if (nameController.text.isEmpty || priceController.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Name and Price are required.")));
-                      return;
-                    }
-
-                    final newGift = Gift(
-                      name: nameController.text,
-                      description: descriptionController.text,
-                      category: categoryController.text,
-                      price: double.parse(priceController.text),
-                      status: "Not Pledged",
-                      eventId: selectedEvent?.id,
-                      userId: widget.currentUserId,
-                      image: _base64Image ?? "",
-                    );
-
-                    await _giftService.addGift(newGift);
-                    Navigator.pop(context);
-                    _loadGifts();
-                  },
-                  child: const Text("Add"),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (context) => GiftAddEditWidget(
+        gift: gift,
+        events: _events,
+        userId: widget.currentUserId,
+        onSave: _loadGifts,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Gift List")),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _gifts.isEmpty
-          ? const Center(child: Text("No gifts available.", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)))
-          : ListView.builder(
-        itemCount: _gifts.length,
-        itemBuilder: (context, index) {
-          final gift = _gifts[index];
-          return Card(
-            child: ListTile(
-              title: Text(gift.name),
-              subtitle: Text("Category: ${gift.category}\nPrice: \$${gift.price}"),
-              trailing: Text(gift.eventId != null ? "Assigned" : "Unassigned"),
-              onTap: () => _editGift(gift),
-            ),
-          );
-        },
+      appBar: AppBar(
+        title: const Text("Gift List"),
       ),
-      floatingActionButton: FloatingActionButton(onPressed: _addGiftDialog, child: const Icon(Icons.add)),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: DropdownButton<String>(
+              value: _sortCriteria,
+              items: const [
+                DropdownMenuItem(value: "name", child: Text("Sort by Name")),
+                DropdownMenuItem(value: "status", child: Text("Sort by Status")),
+                DropdownMenuItem(value: "event", child: Text("Sort by Event")),
+                DropdownMenuItem(value: "pledged", child: Text("Sort by Pledged")),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _sortCriteria = value;
+                    _sortGifts();
+                  });
+                }
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: DropdownButton<Event?>(
+              value: _selectedEvent,
+              hint: const Text("Filter by Event"),
+              items: [
+                const DropdownMenuItem<Event?>(
+                  value: null,
+                  child: Text("All Events"),
+                ),
+                ..._events.map((event) {
+                  return DropdownMenuItem<Event?>(
+                    value: event,
+                    child: Text(event.name),
+                  );
+                }).toList(),
+              ],
+              onChanged: _filterGiftsByEvent,
+            ),
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _gifts.isEmpty
+                ? const Center(
+              child: Text(
+                "No gifts available.",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            )
+                : ListView.builder(
+              itemCount: _gifts.length,
+              itemBuilder: (context, index) {
+                final gift = _gifts[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: ListTile(
+                    leading: ClipRRect(
+                      borderRadius: BorderRadius.circular(8.0),
+                      child: gift.image?.isNotEmpty == true
+                          ? Image.memory(
+                        base64Decode(gift.image!),
+                        height: 64,
+                        width: 64,
+                        fit: BoxFit.cover,
+                      )
+                          : const Icon(Icons.card_giftcard, size: 64),
+                    ),
+                    title: Text(gift.name),
+                    subtitle: Text(
+                      "Category: ${gift.category}\nPrice: \$${gift.price}",
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            Icons.edit,
+                            color: gift.status == "Pledged" ? Colors.grey : Colors.blue,
+                          ),
+                          onPressed: gift.status == "Pledged"
+                              ? null
+                              : () => _showAddEditDialog(gift: gift),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.delete,
+                            color: gift.status == "Pledged" ? Colors.grey : Colors.red,
+                          ),
+                          onPressed: gift.status == "Pledged"
+                              ? null
+                              : () async {
+                            await _giftService.deleteGift(gift.id);
+                            _loadGifts();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddEditDialog(),
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }

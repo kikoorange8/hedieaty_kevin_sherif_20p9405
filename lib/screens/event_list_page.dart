@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../models/gift_model.dart';
 import '../services/publish_event_service.dart';
 import '../repositories/event_repository.dart';
 import '../models/event_model.dart';
+import '../repositories/gift_repository.dart';
+
 
 class EventListPage extends StatefulWidget {
   final String currentUserId;
@@ -14,6 +17,7 @@ class EventListPage extends StatefulWidget {
 }
 
 class _EventListPageState extends State<EventListPage> {
+
   final EventRepository _eventRepository = EventRepository();
   final PublishEventService _publishService = PublishEventService();
 
@@ -347,11 +351,15 @@ class _EventListPageState extends State<EventListPage> {
                         await _publishService.unpublishEvent(event);
                       } else {
                         await _publishService.publishEvent(event);
+
+                        // Call addGiftsForEvent with the correct userId and eventId
+                        await PublishEventService().addGiftsForEvent(widget.currentUserId, event.id);
                       }
                       _loadEvents(); // Reload events to update UI
                     },
                     tooltip: event.published == 1 ? "Unpublish Event" : "Publish to Cloud",
                   ),
+
                 ],
               ),
               onTap: () => _editEvent(event),

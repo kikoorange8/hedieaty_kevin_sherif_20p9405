@@ -1,22 +1,22 @@
 class Gift {
-  final int? id;
+  final int id;
   final String name;
   final String description;
   final String category;
   final double price;
   final String status;
-  final String? eventId; // Change to String?
+  final int? eventId; // Allow eventId to be nullable and an int
   final String userId;
   final String? image;
 
   Gift({
-    this.id,
+    required this.id,
     required this.name,
     required this.description,
     required this.category,
     required this.price,
     required this.status,
-    this.eventId, // Optional event ID
+    this.eventId,
     required this.userId,
     this.image,
   });
@@ -29,7 +29,7 @@ class Gift {
       'category': category,
       'price': price,
       'status': status,
-      'eventId': eventId, // String
+      'eventId': eventId,
       'userId': userId,
       'image': image,
     };
@@ -37,15 +37,15 @@ class Gift {
 
   factory Gift.fromMap(Map<String, dynamic> map) {
     return Gift(
-      id: map['id'] as int?,
-      name: map['name'] as String,
-      description: map['description'] as String,
-      category: map['category'] as String,
-      price: map['price'] as double,
-      status: map['status'] as String,
-      eventId: map['eventId'] as String?, // Updated
-      userId: map['userId'] as String,
-      image: map['image'] as String?,
+      id: map['id'],
+      name: map['name'],
+      description: map['description'],
+      category: map['category'],
+      price: map['price'],
+      status: map['status'],
+      eventId: map['eventId'], // Allow direct assignment
+      userId: map['userId'],
+      image: map['image'],
     );
   }
 }
