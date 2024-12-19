@@ -32,6 +32,7 @@ class _FriendsListPageState extends State<FriendsListPage> {
   String _searchQuery = "";
   Map<String, String> _friendImages = {}; // Friend ID -> Image path
 
+
   @override
   void initState() {
     super.initState();
@@ -42,6 +43,40 @@ class _FriendsListPageState extends State<FriendsListPage> {
     );
     _loadFriends();
     _loadFriendImages();
+  }
+
+
+  String _getEventStatus(String date) {
+    final now = DateTime.now();
+    final eventDate = DateTime.parse(date);
+
+    if (eventDate.year == now.year &&
+        eventDate.month == now.month &&
+        eventDate.day == now.day) {
+      return "Current";
+    } else if (eventDate.isAfter(now)) {
+      return "Upcoming";
+    } else {
+      return "Passed";
+    }
+  }
+
+  Color _getEventStatusColor(String status) {
+    switch (status) {
+      case "Current":
+        return Colors.green;
+      case "Upcoming":
+        return Colors.blue;
+      case "Passed":
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _formatDate(String date) {
+    final eventDate = DateTime.parse(date);
+    return "${eventDate.day}/${eventDate.month}/${eventDate.year}";
   }
 
   Future<void> _addFriendByPhoneNumber(BuildContext context) async {
@@ -200,6 +235,7 @@ class _FriendsListPageState extends State<FriendsListPage> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -268,7 +304,8 @@ class _FriendsListPageState extends State<FriendsListPage> {
                 );
               }
               final userData = snapshot.data!;
-              return ListTile(
+
+              return ExpansionTile(
                 leading: GestureDetector(
                   onTap: () => _pickImageAndSave(friend.friendId),
                   child: CircleAvatar(
@@ -277,21 +314,73 @@ class _FriendsListPageState extends State<FriendsListPage> {
                         : const AssetImage('lib/assets/default_profile.png') as ImageProvider,
                   ),
                 ),
-
                 title: Text(userData['name'] ?? "Unknown Name"),
                 subtitle: Text(userData['phoneNumber'] ?? "No Phone Number"),
-                onTap: () async {
-                  await _helpers.syncEventsAndGifts(friend.friendId);
+                children: [
+                  FutureBuilder<List<Map<String, dynamic>>>(
+                    future: _helpers.fetchFriendEvents(friend.friendId),
+                    builder: (context, eventSnapshot) {
+                      if (eventSnapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (eventSnapshot.hasError) {
+                        return const ListTile(
+                          title: Text("Error loading events."),
+                        );
+                      }
+                      if (!eventSnapshot.hasData || eventSnapshot.data!.isEmpty) {
+                        return const ListTile(
+                          title: Text("No events found."),
+                        );
+                      }
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Events and gifts synced for ${userData['name']}.")),
-                  );
-                },
+                      final events = List<Map<String, dynamic>>.from(eventSnapshot.data!); // Create a mutable copy
+
+// Sort events by Current, Upcoming, and Passed
+                      events.sort((a, b) {
+                        final statusA = _getEventStatus(a['date']);
+                        final statusB = _getEventStatus(b['date']);
+
+                        final priority = {"Current": 0, "Upcoming": 1, "Passed": 2};
+                        return priority[statusA]!.compareTo(priority[statusB]!);
+                      });
+
+
+                      return Column(
+                        children: events.map((event) {
+                          final status = _getEventStatus(event['date']);
+                          return ListTile(
+                            title: Text(event['name'] ?? "Unnamed Event"),
+                            subtitle: Row(
+                              children: [
+                                Text(_formatDate(event['date'])),
+                                const SizedBox(width: 10),
+                                Text(
+                                  status,
+                                  style: TextStyle(color: _getEventStatusColor(status)),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ),
+
+
+                ],
               );
             },
           );
         },
       ),
+
+
+
+
+
+
+
     );
   }
 }

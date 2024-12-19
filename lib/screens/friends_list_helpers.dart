@@ -5,6 +5,7 @@ import '../repositories/friend_repositroy.dart';
 import '../services/friends_list_page_service.dart';
 import '../services/fetch_friend_event_gift_service.dart';
 import '../services/friend_request_service.dart';
+import '../database/database_helper.dart';
 
 class FriendsListHelpers {
   final FriendRepository friendRepository;
@@ -17,12 +18,18 @@ class FriendsListHelpers {
     required this.fetchFriendEventsAndGiftsService,
   });
 
+
   Future<List<Friend>> loadFriends(String currentUserId) async {
     return await friendRepository.fetchFriends(currentUserId);
   }
 
   Future<List<Map<String, dynamic>>> fetchFriendEvents(String friendId) async {
-    return await friendsListPageService.fetchFriendEvents(friendId);
+    final db = await DatabaseHelper.instance.database; // Access the database
+    return await db.query(
+      'events',
+      where: 'userId = ?',
+      whereArgs: [friendId], // Filter events by the friend's ID
+    );
   }
 
   Future<void> syncEventsAndGifts(String friendId) async {
