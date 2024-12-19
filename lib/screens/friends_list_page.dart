@@ -1,13 +1,14 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart'; // For picking an image
+import 'package:shared_preferences/shared_preferences.dart'; // For saving image as preference
 import 'package:firebase_auth/firebase_auth.dart';
-import '../services/friend_request_service.dart';
-import 'friend_event_gift_list.dart';
-import '../repositories/friend_repositroy.dart';
 import '../models/friend_model.dart';
+import '../services/friend_request_service.dart';
+import '../repositories/friend_repositroy.dart';
 import '../services/friends_list_page_service.dart';
 import '../services/fetch_friend_event_gift_service.dart';
-
-
+import 'friends_list_helpers.dart';
 
 class FriendsListPage extends StatefulWidget {
   final String currentUserId;
@@ -22,30 +23,29 @@ class _FriendsListPageState extends State<FriendsListPage> {
   final FriendRequestService _friendRequestService = FriendRequestService();
   final FriendRepository _friendRepository = FriendRepository();
   final FriendsListPageService _friendsListPageService = FriendsListPageService();
-  final _auth = FirebaseAuth.instance;
+  final FetchFriendEventsAndGiftsService _fetchFriendEventsAndGiftsService = FetchFriendEventsAndGiftsService();
+
+  late FriendsListHelpers _helpers;
 
   List<Friend> _friends = [];
+  List<Friend> _filteredFriends = [];
+  String _searchQuery = "";
+  Map<String, String> _friendImages = {}; // Friend ID -> Image path
 
   @override
   void initState() {
     super.initState();
+    _helpers = FriendsListHelpers(
+      friendRepository: _friendRepository,
+      friendsListPageService: _friendsListPageService,
+      fetchFriendEventsAndGiftsService: _fetchFriendEventsAndGiftsService,
+    );
     _loadFriends();
+    _loadFriendImages();
   }
 
-  // Load friends from the SQLite database
-  Future<void> _loadFriends() async {
-    final friendsList = await _friendRepository.fetchFriends(widget.currentUserId);
-    setState(() {
-      _friends = friendsList;
-    });
-  }
-
-  Future<List<Map<String, dynamic>>> _fetchFriendEvents(String friendId) async {
-    return await _friendsListPageService.fetchFriendEvents(friendId);
-  }
-
-  Future<void> _addFriendByPhoneNumber() async {
-    final currentUserId = _auth.currentUser?.uid;
+  Future<void> _addFriendByPhoneNumber(BuildContext context) async {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     if (currentUserId == null) return;
 
     final controller = TextEditingController();
@@ -92,8 +92,8 @@ class _FriendsListPageState extends State<FriendsListPage> {
     );
   }
 
-  Future<void> _showFriendRequests() async {
-    final currentUserId = _auth.currentUser?.uid;
+  Future<void> _showFriendRequests(BuildContext context) async {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     if (currentUserId == null) return;
 
     try {
@@ -158,34 +158,100 @@ class _FriendsListPageState extends State<FriendsListPage> {
     }
   }
 
+  // Load friends from SQLite
+  Future<void> _loadFriends() async {
+    final friendsList = await _helpers.loadFriends(widget.currentUserId);
+    setState(() {
+      _friends = friendsList;
+      _filteredFriends = friendsList;
+    });
+  }
+
+  // Load saved images from SharedPreferences
+  Future<void> _loadFriendImages() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _friendImages = prefs.getKeys().fold<Map<String, String>>({}, (map, key) {
+        map[key] = prefs.getString(key) ?? "";
+        return map;
+      });
+    });
+  }
+
+  // Save a friend's image path to SharedPreferences
+  Future<void> _saveFriendImage(String friendId, String imagePath) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(friendId, imagePath);
+    setState(() {
+      _friendImages[friendId] = imagePath;
+    });
+  }
+
+  // Pick an image and save it
+  Future<void> _pickImageAndSave(String friendId) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      await _saveFriendImage(friendId, pickedFile.path);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Profile picture updated.")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Friends List"),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48.0),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              decoration: const InputDecoration(
+                hintText: "Search friends by name...",
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(8.0)),
+                ),
+              ),
+              onChanged: (query) => _helpers.filterFriends(query, _friends, _friendRepository).then((filteredList) {
+                setState(() {
+                  _filteredFriends = filteredList;
+                });
+              }),
+            ),
+          ),
+        ),
       ),
+
+
+      //ADD AND ACCEPT FRIEND REQUEST BUTOTNS
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           FloatingActionButton.extended(
-            onPressed: _addFriendByPhoneNumber,
-            label: const Text("Add Friend"),
+            onPressed: () => _addFriendByPhoneNumber(context),
+            label: const Text(""),
             icon: const Icon(Icons.add),
           ),
           const SizedBox(height: 10),
           FloatingActionButton.extended(
-            onPressed: _showFriendRequests,
-            label: const Text("View Requests"),
+            onPressed: () => _showFriendRequests(context),
+            label: const Text(""),
             icon: const Icon(Icons.person_add),
           ),
         ],
       ),
-      body: _friends.isEmpty
-          ? const Center(child: Text("No friends yet."))
+
+      body: _filteredFriends.isEmpty
+          ? const Center(child: Text("No friends found."))
           : ListView.builder(
-        itemCount: _friends.length,
+        itemCount: _filteredFriends.length,
         itemBuilder: (context, index) {
-          final friend = _friends[index];
+          final friend = _filteredFriends[index];
           return FutureBuilder<Map<String, dynamic>?>(
             future: _friendRepository.fetchUserDetailsById(friend.friendId),
             builder: (context, snapshot) {
@@ -202,46 +268,25 @@ class _FriendsListPageState extends State<FriendsListPage> {
                 );
               }
               final userData = snapshot.data!;
-              return ExpansionTile(
-                title: Text("Name: ${userData['name']}"),
-                subtitle: Text("Phone: ${userData['phoneNumber']}"),
-                leading: const Icon(Icons.person),
-                children: [
-                  FutureBuilder<List<Map<String, dynamic>>>(
-                    future: _fetchFriendEvents(friend.friendId),
-                    builder: (context, eventSnapshot) {
-                      if (eventSnapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (!eventSnapshot.hasData || eventSnapshot.data!.isEmpty) {
-                        return const ListTile(
-                          title: Text("No events available."),
-                        );
-                      }
-                      final events = eventSnapshot.data!;
-                      return Column(
-                        children: events.map((event) {
-                          return ListTile(
-                            title: Text(event['name'] ?? "Unknown Event"),
-                            subtitle: Text("Date: ${event['date']}"),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => FriendEventGiftList(
-                                    currentUserId: widget.currentUserId,
-                                    friendId: friend.friendId,
-                                    event: event,
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                        }).toList(),
-                      );
-                    },
+              return ListTile(
+                leading: GestureDetector(
+                  onTap: () => _pickImageAndSave(friend.friendId),
+                  child: CircleAvatar(
+                    backgroundImage: _friendImages[friend.friendId]?.isNotEmpty == true
+                        ? FileImage(File(_friendImages[friend.friendId]!))
+                        : const AssetImage('lib/assets/default_profile.png') as ImageProvider,
                   ),
-                ],
+                ),
+
+                title: Text(userData['name'] ?? "Unknown Name"),
+                subtitle: Text(userData['phoneNumber'] ?? "No Phone Number"),
+                onTap: () async {
+                  await _helpers.syncEventsAndGifts(friend.friendId);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Events and gifts synced for ${userData['name']}.")),
+                  );
+                },
               );
             },
           );
