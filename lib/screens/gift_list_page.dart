@@ -5,6 +5,7 @@ import '../models/gift_model.dart';
 import '../models/event_model.dart';
 import '../services/gift_list_service.dart';
 import '../repositories/event_repository.dart';
+import 'dart:io';
 
 class GiftListPage extends StatefulWidget {
   final String currentUserId;
@@ -35,6 +36,17 @@ class _GiftListPageState extends State<GiftListPage> {
     _loadGifts();
     _loadEvents();
   }
+
+
+  Future<bool> checkInternetConnection() async {
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
 
   Future<void> _loadGifts() async {
     setState(() => _isLoading = true);
@@ -221,9 +233,9 @@ class _GiftListPageState extends State<GiftListPage> {
                             IconButton(
                               icon: Icon(
                                 Icons.edit,
-                                color: gift.status == "Pledged" ? Colors.grey : Colors.blue,
+                                color: gift.status == "Pledged" || gift.eventId != null ? Colors.grey : Colors.blue,
                               ),
-                              onPressed: () {
+                              onPressed: () async {
                                 if (gift.status == "Pledged") {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -231,7 +243,20 @@ class _GiftListPageState extends State<GiftListPage> {
                                       duration: Duration(seconds: 2),
                                     ),
                                   );
+                                } else if (gift.eventId != null) {
+                                  // Check for internet connection
+                                  final isConnected = await checkInternetConnection();
+                                  if (!isConnected) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text("Cannot edit this gift because it's associated with an event and you're offline."),
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                    return;
+                                  }
                                 } else {
+                                  // Proceed to edit
                                   _showAddEditDialog(gift: gift);
                                 }
                               },
@@ -240,7 +265,7 @@ class _GiftListPageState extends State<GiftListPage> {
                             IconButton(
                               icon: Icon(
                                 Icons.delete,
-                                color: gift.status == "Pledged" ? Colors.grey : Colors.red,
+                                color: gift.status == "Pledged" || gift.eventId != null ? Colors.grey : Colors.red,
                               ),
                               onPressed: () async {
                                 if (gift.status == "Pledged") {
@@ -250,7 +275,20 @@ class _GiftListPageState extends State<GiftListPage> {
                                       duration: Duration(seconds: 2),
                                     ),
                                   );
+                                } else if (gift.eventId != null) {
+                                  // Check for internet connection
+                                  final isConnected = await checkInternetConnection();
+                                  if (!isConnected) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text("Cannot delete this gift because it's associated with an event and you're offline."),
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                    return;
+                                  }
                                 } else {
+                                  // Proceed to delete
                                   await _giftService.deleteGift(gift.id);
                                   _loadGifts();
                                 }
@@ -258,6 +296,7 @@ class _GiftListPageState extends State<GiftListPage> {
                             ),
                           ],
                         ),
+
 
                       ),
                     );
