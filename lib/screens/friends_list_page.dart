@@ -9,6 +9,9 @@ import '../repositories/friend_repositroy.dart';
 import '../services/friends_list_page_service.dart';
 import '../services/fetch_friend_event_gift_service.dart';
 import 'friends_list_helpers.dart';
+import '../database/database_helper.dart';
+import 'friend_event_gift_list.dart'; // Replace with the correct path
+
 
 class FriendsListPage extends StatefulWidget {
   final String currentUserId;
@@ -26,7 +29,6 @@ class _FriendsListPageState extends State<FriendsListPage> {
   final FetchFriendEventsAndGiftsService _fetchFriendEventsAndGiftsService = FetchFriendEventsAndGiftsService();
 
   late FriendsListHelpers _helpers;
-
   List<Friend> _friends = [];
   List<Friend> _filteredFriends = [];
   String _searchQuery = "";
@@ -45,6 +47,14 @@ class _FriendsListPageState extends State<FriendsListPage> {
     _loadFriendImages();
   }
 
+  Future<List<Map<String, dynamic>>> _fetchFriendEvents(String friendId) async {
+    final db = await DatabaseHelper.instance.database; // Ensure DatabaseHelper is imported
+    return await db.query(
+      'events',
+      where: 'userId = ?',
+      whereArgs: [friendId],
+    );
+  }
 
   String _getEventStatus(String date) {
     final now = DateTime.now();
@@ -282,6 +292,11 @@ class _FriendsListPageState extends State<FriendsListPage> {
         ],
       ),
 
+
+
+
+
+
       body: _filteredFriends.isEmpty
           ? const Center(child: Text("No friends found."))
           : ListView.builder(
@@ -305,6 +320,7 @@ class _FriendsListPageState extends State<FriendsListPage> {
               }
               final userData = snapshot.data!;
 
+              // Ensure ExpansionTile is returned
               return ExpansionTile(
                 leading: GestureDetector(
                   onTap: () => _pickImageAndSave(friend.friendId),
@@ -316,35 +332,39 @@ class _FriendsListPageState extends State<FriendsListPage> {
                 ),
                 title: Text(userData['name'] ?? "Unknown Name"),
                 subtitle: Text(userData['phoneNumber'] ?? "No Phone Number"),
+                onExpansionChanged: (expanded) async {
+                  if (expanded) {
+                    await _helpers.syncEventsAndGifts(friend.friendId);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Events and gifts synced for ${userData['name']}.")),
+                    );
+                  }
+                },
                 children: [
                   FutureBuilder<List<Map<String, dynamic>>>(
-                    future: _helpers.fetchFriendEvents(friend.friendId),
-                    builder: (context, eventSnapshot) {
-                      if (eventSnapshot.connectionState == ConnectionState.waiting) {
+                    future: _fetchFriendEvents(friend.friendId),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
                       }
-                      if (eventSnapshot.hasError) {
+                      if (snapshot.hasError) {
                         return const ListTile(
                           title: Text("Error loading events."),
                         );
                       }
-                      if (!eventSnapshot.hasData || eventSnapshot.data!.isEmpty) {
+                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
                         return const ListTile(
                           title: Text("No events found."),
                         );
                       }
+                      final events = List<Map<String, dynamic>>.from(snapshot.data!);
 
-                      final events = List<Map<String, dynamic>>.from(eventSnapshot.data!); // Create a mutable copy
-
-// Sort events by Current, Upcoming, and Passed
                       events.sort((a, b) {
                         final statusA = _getEventStatus(a['date']);
                         final statusB = _getEventStatus(b['date']);
-
                         final priority = {"Current": 0, "Upcoming": 1, "Passed": 2};
                         return priority[statusA]!.compareTo(priority[statusB]!);
                       });
-
 
                       return Column(
                         children: events.map((event) {
@@ -361,13 +381,23 @@ class _FriendsListPageState extends State<FriendsListPage> {
                                 ),
                               ],
                             ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => FriendEventGiftList(
+                                    currentUserId: widget.currentUserId,
+                                    friendId: friend.friendId,
+                                    event: event,
+                                  ),
+                                ),
+                              );
+                            },
                           );
                         }).toList(),
                       );
                     },
                   ),
-
-
                 ],
               );
             },
