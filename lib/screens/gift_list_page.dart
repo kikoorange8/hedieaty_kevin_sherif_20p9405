@@ -24,6 +24,7 @@ class _GiftListPageState extends State<GiftListPage> {
 
   bool _isLoading = true;
   List<Gift> _gifts = [];
+  List<Gift> _allGifts = []; // New list to store all gifts
   List<Event> _events = [];
   String _sortCriteria = "name";
   Event? _selectedEvent;
@@ -39,14 +40,38 @@ class _GiftListPageState extends State<GiftListPage> {
     setState(() => _isLoading = true);
     try {
       final gifts = await _giftService.getAllGifts(widget.currentUserId);
-      setState(() => _gifts = gifts);
+      setState(() {
+        _allGifts = gifts; // Store all gifts
+        _gifts = List.from(_allGifts); // Initially show all gifts
+      });
+      print("Loaded Gifts: $_allGifts");
     } catch (e) {
       print("Error loading gifts: $e");
-      setState(() => _gifts = []);
+      setState(() {
+        _allGifts = [];
+        _gifts = [];
+      });
     } finally {
       setState(() => _isLoading = false);
     }
   }
+
+  Future<String> _getEventNameFromRepository(int? eventId) async {
+    if (eventId == null) return "No Event";
+    try {
+      final events = await _eventRepository.fetchEventsForUser(widget.currentUserId);
+      final event = events.firstWhere(
+            (e) => e.id == eventId.toString(),
+        orElse: () => Event(id: "0", name: "No Event", date: "", location: "", description: "", userId: ""),
+      );
+      return event.name;
+    } catch (e) {
+      print("Error fetching event name: $e");
+      return "No Event";
+    }
+  }
+
+
 
   Future<void> _loadEvents() async {
     try {
@@ -75,12 +100,23 @@ class _GiftListPageState extends State<GiftListPage> {
     setState(() {
       _selectedEvent = event;
       if (event != null) {
-        _gifts = _gifts.where((gift) => gift.eventId == int.tryParse(event.id)).toList();
+        print("Filtering by Event: ${event.id}");
+        print("All Gifts: $_allGifts");
+
+        _gifts = _allGifts.where((gift) {
+          print("Gift ID: ${gift.id}, Gift Event ID: ${gift.eventId}");
+          return gift.eventId == int.tryParse(event.id);
+        }).toList();
+
+        print("Filtered Gifts: $_gifts");
       } else {
-        _loadGifts(); // Reload all gifts if no event is selected
+        print("No Event Selected, Showing All Gifts");
+        _gifts = List.from(_allGifts);
       }
     });
   }
+
+
 
   void _showAddEditDialog({Gift? gift}) {
     showDialog(
@@ -109,7 +145,7 @@ class _GiftListPageState extends State<GiftListPage> {
               items: const [
                 DropdownMenuItem(value: "name", child: Text("Sort by Name")),
                 DropdownMenuItem(value: "status", child: Text("Sort by Status")),
-                DropdownMenuItem(value: "event", child: Text("Sort by Event")),
+                //DropdownMenuItem(value: "event", child: Text("Sort by Event")),
                 DropdownMenuItem(value: "pledged", child: Text("Sort by Pledged")),
               ],
               onChanged: (value) {
@@ -156,52 +192,59 @@ class _GiftListPageState extends State<GiftListPage> {
               itemCount: _gifts.length,
               itemBuilder: (context, index) {
                 final gift = _gifts[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: ListTile(
-                    leading: ClipRRect(
-                      borderRadius: BorderRadius.circular(8.0),
-                      child: gift.image?.isNotEmpty == true
-                          ? Image.memory(
-                        base64Decode(gift.image!),
-                        height: 64,
-                        width: 64,
-                        fit: BoxFit.cover,
-                      )
-                          : const Icon(Icons.card_giftcard, size: 64),
-                    ),
-                    title: Text(gift.name),
-                    subtitle: Text(
-                      "Category: ${gift.category}\nPrice: \$${gift.price}",
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: Icon(
-                            Icons.edit,
-                            color: gift.status == "Pledged" ? Colors.grey : Colors.blue,
-                          ),
-                          onPressed: gift.status == "Pledged"
-                              ? null
-                              : () => _showAddEditDialog(gift: gift),
+                return FutureBuilder<String>(
+                  future: _getEventNameFromRepository(gift.eventId),
+                  builder: (context, snapshot) {
+                    final eventName = snapshot.data ?? "Loading...";
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      child: ListTile(
+                        leading: ClipRRect(
+                          borderRadius: BorderRadius.circular(8.0),
+                          child: gift.image?.isNotEmpty == true
+                              ? Image.memory(
+                            base64Decode(gift.image!),
+                            height: 64,
+                            width: 64,
+                            fit: BoxFit.cover,
+                          )
+                              : const Icon(Icons.card_giftcard, size: 64),
                         ),
-                        IconButton(
-                          icon: Icon(
-                            Icons.delete,
-                            color: gift.status == "Pledged" ? Colors.grey : Colors.red,
-                          ),
-                          onPressed: gift.status == "Pledged"
-                              ? null
-                              : () async {
-                            await _giftService.deleteGift(gift.id);
-                            _loadGifts();
-                          },
+                        title: Text(gift.name),
+                        subtitle: Text(
+                          "Category: ${gift.category}\nPrice: \$${gift.price}\nEvent: $eventName",
                         ),
-                      ],
-                    ),
-                  ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                Icons.edit,
+                                color: gift.status == "Pledged" ? Colors.grey : Colors.blue,
+                              ),
+                              onPressed: gift.status == "Pledged"
+                                  ? null
+                                  : () => _showAddEditDialog(gift: gift),
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.delete,
+                                color: gift.status == "Pledged" ? Colors.grey : Colors.red,
+                              ),
+                              onPressed: gift.status == "Pledged"
+                                  ? null
+                                  : () async {
+                                await _giftService.deleteGift(gift.id);
+                                _loadGifts();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 );
+
               },
             ),
           ),

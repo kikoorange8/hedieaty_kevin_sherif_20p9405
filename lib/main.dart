@@ -5,12 +5,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hedieaty_kevin_sherif_20p9405/screens/home_screen.dart';
 import 'package:hedieaty_kevin_sherif_20p9405/screens/login.dart';
 import 'package:hedieaty_kevin_sherif_20p9405/screens/signup.dart';
+import 'package:sqflite/sqflite.dart';
 import 'firebase_options.dart';
 // SQL database
 import 'database/database_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }

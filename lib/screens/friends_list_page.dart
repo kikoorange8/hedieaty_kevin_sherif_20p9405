@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/friend_request_service.dart';
-import 'friend_event.dart';
+import 'friend_event_gift_list.dart';
 import '../repositories/friend_repositroy.dart';
 import '../models/friend_model.dart';
+import '../services/friends_list_page_service.dart';
 
 class FriendsListPage extends StatefulWidget {
   final String currentUserId;
@@ -17,6 +18,7 @@ class FriendsListPage extends StatefulWidget {
 class _FriendsListPageState extends State<FriendsListPage> {
   final FriendRequestService _friendRequestService = FriendRequestService();
   final FriendRepository _friendRepository = FriendRepository();
+  final FriendsListPageService _friendsListPageService = FriendsListPageService();
   final _auth = FirebaseAuth.instance;
 
   List<Friend> _friends = [];
@@ -33,6 +35,10 @@ class _FriendsListPageState extends State<FriendsListPage> {
     setState(() {
       _friends = friendsList;
     });
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchFriendEvents(String friendId) async {
+    return await _friendsListPageService.fetchFriendEvents(friendId);
   }
 
   Future<void> _addFriendByPhoneNumber() async {
@@ -171,11 +177,10 @@ class _FriendsListPageState extends State<FriendsListPage> {
           ),
         ],
       ),
-      // Within the Friends Page body
       body: _friends.isEmpty
           ? const Center(child: Text("No friends yet."))
           : ListView.builder(
-        itemCount: _friends.length, // Use dynamic count
+        itemCount: _friends.length,
         itemBuilder: (context, index) {
           final friend = _friends[index];
           return FutureBuilder<Map<String, dynamic>?>(
@@ -194,18 +199,46 @@ class _FriendsListPageState extends State<FriendsListPage> {
                 );
               }
               final userData = snapshot.data!;
-              return ListTile(
+              return ExpansionTile(
                 title: Text("Name: ${userData['name']}"),
                 subtitle: Text("Phone: ${userData['phoneNumber']}"),
-                leading: const Icon(Icons.person), // Optional: Add an icon
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                          "Selected: ${userData['name']} (${userData['phoneNumber']})"),
-                    ),
-                  );
-                },
+                leading: const Icon(Icons.person),
+                children: [
+                  FutureBuilder<List<Map<String, dynamic>>>(
+                    future: _fetchFriendEvents(friend.friendId),
+                    builder: (context, eventSnapshot) {
+                      if (eventSnapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (!eventSnapshot.hasData || eventSnapshot.data!.isEmpty) {
+                        return const ListTile(
+                          title: Text("No events available."),
+                        );
+                      }
+                      final events = eventSnapshot.data!;
+                      return Column(
+                        children: events.map((event) {
+                          return ListTile(
+                            title: Text(event['name'] ?? "Unknown Event"),
+                            subtitle: Text("Date: ${event['date']}"),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => FriendEventGiftList(
+                                    currentUserId: widget.currentUserId,
+                                    friendId: friend.friendId,
+                                    event: event,
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ),
+                ],
               );
             },
           );
