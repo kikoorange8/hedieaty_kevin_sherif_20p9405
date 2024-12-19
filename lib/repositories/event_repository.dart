@@ -6,6 +6,15 @@ import 'package:firebase_database/firebase_database.dart';
 class EventRepository {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
 
+  Future<Event?> getEventById(String eventId) async {
+    final db = await _dbHelper.database;
+    final result = await db.query('events', where: 'id = ?', whereArgs: [eventId]);
+    if (result.isNotEmpty) {
+      return Event.fromMap(result.first);
+    }
+    return null;
+  }
+
 
   // Fetch events for a specific user
   Future<List<Event>> fetchEventsForUser(String userId) async {

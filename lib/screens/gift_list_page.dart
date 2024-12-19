@@ -233,9 +233,10 @@ class _GiftListPageState extends State<GiftListPage> {
                             IconButton(
                               icon: Icon(
                                 Icons.edit,
-                                color: gift.status == "Pledged" || gift.eventId != null ? Colors.grey : Colors.blue,
+                                color: gift.status == "Pledged" ? Colors.grey : Colors.blue,
                               ),
                               onPressed: () async {
+                                // Scenario 1: Gift is pledged
                                 if (gift.status == "Pledged") {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -243,31 +244,40 @@ class _GiftListPageState extends State<GiftListPage> {
                                       duration: Duration(seconds: 2),
                                     ),
                                   );
-                                } else if (gift.eventId != null) {
-                                  // Check for internet connection
-                                  final isConnected = await checkInternetConnection();
-                                  if (!isConnected) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text("Cannot edit this gift because it's associated with an event and you're offline."),
-                                        duration: Duration(seconds: 2),
-                                      ),
-                                    );
-                                    return;
-                                  }
-                                } else {
-                                  // Proceed to edit
-                                  _showAddEditDialog(gift: gift);
+                                  return;
                                 }
+
+                                // Scenario 2: Gift relates to a published event and no internet
+                                if (gift.eventId != null) {
+                                  // Fetch the associated event
+                                  final event = await _eventRepository.getEventById(gift.eventId.toString());
+                                  if (event != null && event.published == 1) {
+                                    // Check for internet connection
+                                    final isConnected = await checkInternetConnection();
+                                    if (!isConnected) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text("Cannot edit this gift because it's associated with a published event and you're offline."),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                  }
+                                }
+
+                                // Proceed to edit if all conditions are satisfied
+                                _showAddEditDialog(gift: gift);
                               },
                             ),
                             // Delete Button
                             IconButton(
                               icon: Icon(
                                 Icons.delete,
-                                color: gift.status == "Pledged" || gift.eventId != null ? Colors.grey : Colors.red,
+                                color: gift.status == "Pledged" ? Colors.grey : Colors.red,
                               ),
                               onPressed: () async {
+                                // Scenario 1: Gift is pledged
                                 if (gift.status == "Pledged") {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -275,27 +285,36 @@ class _GiftListPageState extends State<GiftListPage> {
                                       duration: Duration(seconds: 2),
                                     ),
                                   );
-                                } else if (gift.eventId != null) {
-                                  // Check for internet connection
-                                  final isConnected = await checkInternetConnection();
-                                  if (!isConnected) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text("Cannot delete this gift because it's associated with an event and you're offline."),
-                                        duration: Duration(seconds: 2),
-                                      ),
-                                    );
-                                    return;
-                                  }
-                                } else {
-                                  // Proceed to delete
-                                  await _giftService.deleteGift(gift.id);
-                                  _loadGifts();
+                                  return;
                                 }
+
+                                // Scenario 2: Gift relates to a published event and no internet
+                                if (gift.eventId != null) {
+                                  // Fetch the associated event
+                                  final event = await _eventRepository.getEventById(gift.eventId.toString());
+                                  if (event != null && event.published == 1) {
+                                    // Check for internet connection
+                                    final isConnected = await checkInternetConnection();
+                                    if (!isConnected) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text("Cannot delete this gift because it's associated with a published event and you're offline."),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                  }
+                                }
+
+                                // Proceed to delete if all conditions are satisfied
+                                await _giftService.deleteGift(gift.id);
+                                _loadGifts();
                               },
                             ),
                           ],
                         ),
+
 
 
                       ),
