@@ -49,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
       FriendsListPage(currentUserId: widget.currentUserId),
       EventListPage(currentUserId: widget.currentUserId),
       GiftListPage(currentUserId: widget.currentUserId),
-      PledgedGiftPage(currentUserId: widget.currentUserId),
+      PledgedGiftsPage(),
       const ProfilePage(),
     ];
 

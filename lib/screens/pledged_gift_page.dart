@@ -1,113 +1,113 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_database/firebase_database.dart';
+import '../database/database_helper.dart';
 import '../repositories/gift_repository.dart';
+import '../repositories/user_repository.dart';
+import '../repositories/event_repository.dart';
 import '../models/gift_model.dart';
+import '../models/user_model.dart';
+import '../models/event_model.dart';
+import '../services/gift_image_cache_service.dart';
 
-class PledgedGiftPage extends StatefulWidget {
-  final String currentUserId;
-
-  const PledgedGiftPage({super.key, required this.currentUserId});
-
+class PledgedGiftsPage extends StatefulWidget {
   @override
-  State<PledgedGiftPage> createState() => _PledgedGiftPageState();
+  _PledgedGiftsPageState createState() => _PledgedGiftsPageState();
 }
 
-class _PledgedGiftPageState extends State<PledgedGiftPage> {
+class _PledgedGiftsPageState extends State<PledgedGiftsPage> {
+  List<Map<String, dynamic>> _detailedPledgedGifts = [];
   final GiftRepository _giftRepository = GiftRepository();
-  List<Gift> _pledgedGifts = [];
-  bool _isLoading = false;
+  final UserRepository _userRepository = UserRepository();
+  final EventRepository _eventRepository = EventRepository();
+  final GiftImageCacheService _imageService = GiftImageCacheService();
 
   @override
   void initState() {
     super.initState();
-    _fetchPledgedGifts();
+    _fetchPledgedGiftsDetails();
   }
 
-  Future<void> _fetchPledgedGifts() async {
+  Future<void> _fetchPledgedGiftsDetails() async {
+    final prefs = await SharedPreferences.getInstance();
+    final allKeys = prefs.getKeys();
+    List<Map<String, dynamic>> detailedPledgedGifts = [];
+
+    for (String key in allKeys) {
+      if (key.startsWith('pledgedGifts_')) {
+        List<String>? giftIds = prefs.getStringList(key);
+        if (giftIds != null && giftIds.isNotEmpty) {
+          for (String gift in giftIds) {
+            final parts = gift.split('|');
+            if (parts.length == 3) {
+              final friendId = parts[0];
+              final eventId = parts[1];
+              final giftId = parts[2];
+
+              // Fetch details from the database
+              Gift? giftDetails = await _giftRepository.getGiftById(giftId);
+              UserModel? userDetails = await _userRepository.fetchUserById(friendId);
+              Event? eventDetails = await _eventRepository.getEventById(eventId);
+
+              if (giftDetails != null && userDetails != null && eventDetails != null) {
+                detailedPledgedGifts.add({
+                  'giftId': giftId,
+                  'friendId': friendId,
+                  'eventId': eventId,
+                  'giftName': giftDetails.name,
+                  'giftPrice': giftDetails.price,
+                  'friendName': userDetails.name,
+                  'eventName': eventDetails.name,
+                  'eventDate': _formatDate(eventDetails.date),
+                  'status': giftDetails.status, // Track current status
+                  'giftImage': giftDetails.image, // Add image field
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+
     setState(() {
-      _isLoading = true;
+      _detailedPledgedGifts = detailedPledgedGifts;
     });
+  }
+
+  String _formatDate(String date) {
+    final eventDate = DateTime.parse(date);
+    return "${eventDate.day}/${eventDate.month}/${eventDate.year}";
+  }
+
+  Future<void> _updateGiftStatus(String friendId, String eventId, String giftId, String newStatus) async {
+    final dbRef = FirebaseDatabase.instance.ref();
+    final db = await DatabaseHelper.instance.database;
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final pledgedGiftIds = prefs.getStringList('pledgedGifts_${widget.currentUserId}') ?? [];
+      // Update the status in Firebase
+      await dbRef.child('events/$friendId/$eventId/gifts/$giftId').update({'status': newStatus});
 
-      print("DEBUG: SharedPreferences - Pledged Gift IDs: $pledgedGiftIds");
-
-      // Fetch all "Pledged" gifts from the database
-      final allPledgedGifts = await _giftRepository.fetchGiftsByStatus(
-        status: 'Pledged',
-        userId: widget.currentUserId,
+      // Update the status in SQLite
+      await db.update(
+        'gifts',
+        {'status': newStatus},
+        where: 'id = ?',
+        whereArgs: [giftId],
       );
 
-      print("DEBUG: Fetched Gifts: ${allPledgedGifts.map((gift) => gift.toMap()).toList()}");
-
-      // Filter gifts based on SharedPreferences
-      final filteredGifts = allPledgedGifts.where((gift) {
-        final key = '${gift.userId}|${gift.eventId}|${gift.id}';
-        return pledgedGiftIds.contains(key);
-      }).toList();
-
-      print("DEBUG: Filtered Pledged Gifts: ${filteredGifts.map((gift) => gift.toMap()).toList()}");
-
-      setState(() {
-        _pledgedGifts = filteredGifts;
-      });
+      print("Gift $giftId updated to $newStatus successfully.");
     } catch (e) {
-      print("Error fetching pledged gifts: $e");
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      print("Error updating gift: $e");
     }
   }
 
-  Future<void> _purchaseGift(Gift gift) async {
+  Future<void> _toggleGiftStatus(String friendId, String eventId, String giftId, String currentStatus) async {
+    String newStatus = currentStatus == "Purchased" ? "Pledged" : "Purchased";
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final key = 'pledgedGifts_${widget.currentUserId}';
-      List<String> pledgedGifts = prefs.getStringList(key) ?? [];
-
-      final giftKey = '${gift.userId}|${gift.eventId}|${gift.id}';
-
-      // Ensure it's a pledged gift
-      if (!pledgedGifts.contains(giftKey)) {
-        throw Exception("Gift is not in pledged status.");
-      }
-
-      // Update Firebase
-      await FirebaseDatabase.instance
-          .ref()
-          .child('events/${gift.userId}/${gift.eventId}/gifts/${gift.id}')
-          .update({'status': 'Purchased'});
-
-      // Update SQLite
-      gift.status = 'Purchased'; // Assuming you update the status directly in SQLite
-      await _giftRepository.updateGift(gift);
-
-      // Remove from SharedPreferences
-      pledgedGifts.remove(giftKey);
-      await prefs.setStringList(key, pledgedGifts);
-
-      // Update local list
-      setState(() {
-        _pledgedGifts = _pledgedGifts.map((g) {
-          if (g.id == gift.id) {
-            g.status = 'Purchased';
-          }
-          return g;
-        }).toList();
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Gift '${gift.name}' marked as Purchased.")),
-      );
+      await _updateGiftStatus(friendId, eventId, giftId, newStatus);
+      await _fetchPledgedGiftsDetails();
     } catch (e) {
-      print("Error purchasing gift: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to mark gift as Purchased.")),
-      );
+      print("Error toggling gift status: $e");
     }
   }
 
@@ -115,94 +115,106 @@ class _PledgedGiftPageState extends State<PledgedGiftPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Pledged Gifts"),
-        backgroundColor: Colors.indigo,
+        title: const Text('Pledged Gifts'),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _pledgedGifts.isEmpty
-          ? const Center(
-        child: Text(
-          "No pledged gifts available.",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey,
-          ),
+      body: _detailedPledgedGifts.isEmpty
+          ? Center(
+        child: const Text(
+          'No pledged gifts found.',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
       )
-          : Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Your Pledged Gifts",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.indigo,
-              ),
+          : ListView.builder(
+        itemCount: _detailedPledgedGifts.length,
+        itemBuilder: (context, index) {
+          final giftDetails = _detailedPledgedGifts[index];
+          final giftImage = _imageService.decodeBase64Image(giftDetails['giftImage']);
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _pledgedGifts.length,
-                itemBuilder: (context, index) {
-                  final gift = _pledgedGifts[index];
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  // Display gift image or placeholder
+                  CircleAvatar(
+                    backgroundImage: giftImage != null ? MemoryImage(giftImage) : null,
+                    radius: 32,
+                    backgroundColor: Colors.grey[200],
+                    child: giftImage == null
+                        ? const Icon(Icons.card_giftcard, size: 32, color: Colors.grey)
+                        : null,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Gift Name: ${giftDetails['giftName']}',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'Gift Price: \$${giftDetails['giftPrice']}',
+                          style: const TextStyle(fontSize: 14, color: Colors.grey),
+                        ),
+                        Text(
+                          'Friend Name: ${giftDetails['friendName']}',
+                          style: const TextStyle(fontSize: 14, color: Colors.grey),
+                        ),
+                        Text(
+                          'Event Name: ${giftDetails['eventName']}',
+                          style: const TextStyle(fontSize: 14, color: Colors.grey),
+                        ),
+                        Text(
+                          'Event Date: ${giftDetails['eventDate']}',
+                          style: const TextStyle(fontSize: 14, color: Colors.grey),
+                        ),
+                      ],
                     ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.all(16),
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.grey.shade200,
-                        radius: 30,
-                        child: Icon(
-                          Icons.card_giftcard,
-                          size: 30,
-                          color: Colors.indigo,
-                        ),
+                  ),
+                  Column(
+                    children: [
+                      Icon(
+                        Icons.handshake,
+                        color: giftDetails['status'] == "Purchased" ? Colors.grey : Colors.green,
+                        size: 30,
                       ),
-                      title: Text(
-                        gift.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      subtitle: Text(
-                        "Category: ${gift.category}\nPrice: \$${gift.price.toStringAsFixed(2)}",
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.black54,
-                        ),
-                      ),
-                      trailing: IconButton(
+                      const SizedBox(height: 8),
+                      IconButton(
                         icon: Icon(
                           Icons.shopping_cart,
-                          color: gift.status == "Purchased"
-                              ? Colors.amber
-                              : Colors.grey,
+                          color: giftDetails['status'] == "Purchased" ? Colors.amber : Colors.grey,
                         ),
-                        onPressed: gift.status == "Purchased"
-                            ? null
-                            : () => _purchaseGift(gift),
-                        tooltip: gift.status == "Purchased"
-                            ? "Already Purchased"
-                            : "Mark as Purchased",
+                        onPressed: () {
+                          _toggleGiftStatus(
+                            giftDetails['friendId'],
+                            giftDetails['eventId'],
+                            giftDetails['giftId'],
+                            giftDetails['status'],
+                          );
+
+                          if (giftDetails['status'] == "Pledged") {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text("Gift purchased"),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        },
+
                       ),
-                    ),
-                  );
-                },
+                    ],
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
