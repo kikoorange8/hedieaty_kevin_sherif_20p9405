@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../repositories/gift_repository.dart';
 import '../models/gift_model.dart';
 
@@ -27,13 +28,24 @@ class _PledgedGiftPageState extends State<PledgedGiftPage> {
       _isLoading = true;
     });
 
-    final pledgedGifts = await _giftRepository.fetchGiftsByStatus(
+    // Fetch pledged gifts from the database
+    final dbPledgedGifts = await _giftRepository.fetchGiftsByStatus(
       status: "Pledged",
       userId: widget.currentUserId,
     );
 
+    // Fetch pledged gift IDs from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'pledgedGifts_${widget.currentUserId}';
+    final pledgedGiftIds = prefs.getStringList(key) ?? [];
+
+    // Filter database gifts to only include those pledged locally
+    final localPledgedGifts = dbPledgedGifts.where((gift) {
+      return pledgedGiftIds.contains('${gift.eventId}|${gift.id}');
+    }).toList();
+
     setState(() {
-      _pledgedGifts = pledgedGifts;
+      _pledgedGifts = localPledgedGifts;
       _isLoading = false;
     });
   }
@@ -48,10 +60,10 @@ class _PledgedGiftPageState extends State<PledgedGiftPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _pledgedGifts.isEmpty
-          ? Center(
+          ? const Center(
         child: Text(
           "No pledged gifts available.",
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: Colors.grey,
@@ -103,8 +115,7 @@ class _PledgedGiftPageState extends State<PledgedGiftPage> {
                         ),
                       ),
                       subtitle: Text(
-                        "Category: ${gift.category}\nPrice: \$${gift.price
-                            .toStringAsFixed(2)}",
+                        "Category: ${gift.category}\nPrice: \$${gift.price.toStringAsFixed(2)}",
                         style: const TextStyle(
                           fontSize: 16,
                           color: Colors.black54,

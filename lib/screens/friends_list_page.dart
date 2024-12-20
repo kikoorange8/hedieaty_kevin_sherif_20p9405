@@ -48,7 +48,8 @@ class _FriendsListPageState extends State<FriendsListPage> {
   }
 
   Future<List<Map<String, dynamic>>> _fetchFriendEvents(String friendId) async {
-    final db = await DatabaseHelper.instance.database; // Ensure DatabaseHelper is imported
+    final db = await DatabaseHelper.instance
+        .database; // Ensure DatabaseHelper is imported
     return await db.query(
       'events',
       where: 'userId = ?',
@@ -56,13 +57,15 @@ class _FriendsListPageState extends State<FriendsListPage> {
     );
   }
 
-  Future<void> _updateGiftStatus(String friendId, String eventId, String giftId, String newStatus) async {
+  Future<void> _updateGiftStatus(String friendId, String eventId, String giftId,
+      String newStatus) async {
     final dbRef = FirebaseDatabase.instance.ref();
     final db = await DatabaseHelper.instance.database;
 
     try {
       // Fetch latest gift details from Firebase
-      final giftSnapshot = await dbRef.child('events/$friendId/$eventId/gifts/$giftId').get();
+      final giftSnapshot = await dbRef.child(
+          'events/$friendId/$eventId/gifts/$giftId').get();
       if (!giftSnapshot.exists) {
         throw Exception("Gift $giftId not found in Firebase.");
       }
@@ -70,7 +73,8 @@ class _FriendsListPageState extends State<FriendsListPage> {
       final giftData = Map<String, dynamic>.from(giftSnapshot.value as Map);
 
       // Update the status in Firebase
-      await dbRef.child('events/$friendId/$eventId/gifts/$giftId').update({'status': newStatus});
+      await dbRef.child('events/$friendId/$eventId/gifts/$giftId').update(
+          {'status': newStatus});
 
       // Update the status in SQLite
       await db.update(
@@ -146,7 +150,8 @@ class _FriendsListPageState extends State<FriendsListPage> {
           title: const Text("Add Friend"),
           content: TextField(
             controller: controller,
-            decoration: const InputDecoration(hintText: "Enter friend's phone number"),
+            decoration: const InputDecoration(
+                hintText: "Enter friend's phone number"),
             keyboardType: TextInputType.phone,
           ),
           actions: [
@@ -165,7 +170,8 @@ class _FriendsListPageState extends State<FriendsListPage> {
                     phoneNumber: phoneNumber,
                   );
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Friend request sent successfully.")),
+                    const SnackBar(
+                        content: Text("Friend request sent successfully.")),
                   );
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -186,7 +192,8 @@ class _FriendsListPageState extends State<FriendsListPage> {
     if (currentUserId == null) return;
 
     try {
-      final requests = await _friendRequestService.getIncomingRequests(currentUserId);
+      final requests = await _friendRequestService.getIncomingRequests(
+          currentUserId);
 
       showDialog(
         context: context,
@@ -200,7 +207,8 @@ class _FriendsListPageState extends State<FriendsListPage> {
                 children: requests.map((request) {
                   return ListTile(
                     title: Text(request["name"] ?? "Unknown"),
-                    subtitle: Text("${request["email"]} • ${request["phoneNumber"]}"),
+                    subtitle: Text(
+                        "${request["email"]} • ${request["phoneNumber"]}"),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -298,172 +306,222 @@ class _FriendsListPageState extends State<FriendsListPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Friends List"),
-
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48.0),
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
+        backgroundColor: Colors.teal,
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
             child: TextField(
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: "Search friends by name...",
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: const Icon(Icons.search, color: Colors.teal),
+                filled: true,
+                fillColor: Colors.grey.shade200,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(8.0)),
+                  borderRadius: BorderRadius.circular(12.0),
+                  borderSide: BorderSide.none,
                 ),
               ),
-              onChanged: (query) => _helpers.filterFriends(query, _friends, _friendRepository).then((filteredList) {
-                setState(() {
-                  _filteredFriends = filteredList;
-                });
-              }),
+              onChanged: (query) =>
+                  _helpers
+                      .filterFriends(query, _friends, _friendRepository)
+                      .then((filteredList) {
+                    setState(() {
+                      _filteredFriends = filteredList;
+                    });
+                  }),
             ),
           ),
-        ),
+          Expanded(
+            child: _filteredFriends.isEmpty
+                ? const Center(
+              child: Text(
+                "No friends found.",
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+            )
+                : ListView.builder(
+              itemCount: _filteredFriends.length,
+              itemBuilder: (context, index) {
+                final friend = _filteredFriends[index];
+                return FutureBuilder<Map<String, dynamic>?>(
+                  future:
+                  _friendRepository.fetchUserDetailsById(friend.friendId),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return const ListTile(
+                        title: Text("Loading..."),
+                        subtitle: Text("Please wait"),
+                      );
+                    }
+                    if (!snapshot.hasData || snapshot.data == null) {
+                      return ListTile(
+                        title: Text("Friend ID: ${friend.friendId}"),
+                        subtitle: const Text("User not found"),
+                      );
+                    }
+                    final userData = snapshot.data!;
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                          vertical: 8, horizontal: 16),
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ExpansionTile(
+                        leading: GestureDetector(
+                          onTap: () => _pickImageAndSave(friend.friendId),
+                          child: CircleAvatar(
+                            radius: 28,
+                            backgroundImage: _friendImages[friend.friendId]
+                                ?.isNotEmpty ==
+                                true
+                                ? FileImage(
+                                File(_friendImages[friend.friendId]!))
+                                : const AssetImage(
+                                'lib/assets/default_profile.png')
+                            as ImageProvider,
+                          ),
+                        ),
+                        title: Text(
+                          userData['name'] ?? "Unknown Name",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        subtitle: Text(
+                          userData['phoneNumber'] ?? "No Phone Number",
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        onExpansionChanged: (expanded) async {
+                          if (expanded) {
+                            try {
+                              await _helpers.syncEventsAndGifts(
+                                  friend.friendId);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      "Events and gifts synced for ${userData['name']}."),
+                                ),
+                              );
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(
+                                        "Failed to sync events and gifts: $e")),
+                              );
+                            }
+                          }
+                        },
+                        children: [
+                          FutureBuilder<List<Map<String, dynamic>>>(
+                            future: _fetchFriendEvents(friend.friendId),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                    child: CircularProgressIndicator());
+                              }
+                              if (snapshot.hasError) {
+                                return const ListTile(
+                                  title: Text("Error loading events."),
+                                );
+                              }
+                              if (!snapshot.hasData ||
+                                  snapshot.data!.isEmpty) {
+                                return const ListTile(
+                                  title: Text("No events found."),
+                                );
+                              }
+                              final events = List<Map<String, dynamic>>.from(
+                                  snapshot.data!);
+
+                              events.sort((a, b) {
+                                final statusA = _getEventStatus(a['date']);
+                                final statusB = _getEventStatus(b['date']);
+                                final priority = {
+                                  "Current": 0,
+                                  "Upcoming": 1,
+                                  "Passed": 2
+                                };
+                                return priority[statusA]!
+                                    .compareTo(priority[statusB]!);
+                              });
+
+                              return Column(
+                                children: events.map((event) {
+                                  final status =
+                                  _getEventStatus(event['date']);
+                                  return ListTile(
+                                    title: Text(event['name'] ??
+                                        "Unnamed Event"),
+                                    subtitle: Row(
+                                      children: [
+                                        Text(_formatDate(event['date'])),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          status,
+                                          style: TextStyle(
+                                              color:
+                                              _getEventStatusColor(
+                                                  status)),
+                                        ),
+                                      ],
+                                    ),
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              FriendEventGiftList(
+                                                currentUserId:
+                                                widget.currentUserId,
+                                                friendId: friend.friendId,
+                                                event: event,
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                }).toList(),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
-
-
-      //ADD AND ACCEPT FRIEND REQUEST BUTOTNS
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           FloatingActionButton.extended(
             onPressed: () => _addFriendByPhoneNumber(context),
-            label: const Text(""),
+            label: const Text("Add Friend"),
             icon: const Icon(Icons.add),
+            backgroundColor: Colors.teal,
           ),
           const SizedBox(height: 10),
           FloatingActionButton.extended(
             onPressed: () => _showFriendRequests(context),
-            label: const Text(""),
+            label: const Text("Requests"),
             icon: const Icon(Icons.person_add),
+            backgroundColor: Colors.teal.shade700,
           ),
         ],
       ),
-
-
-      body: _filteredFriends.isEmpty
-          ? const Center(child: Text("No friends found."))
-          : ListView.builder(
-        itemCount: _filteredFriends.length,
-        itemBuilder: (context, index) {
-          final friend = _filteredFriends[index];
-          return FutureBuilder<Map<String, dynamic>?>(
-            future: _friendRepository.fetchUserDetailsById(friend.friendId),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const ListTile(
-                  title: Text("Loading..."),
-                  subtitle: Text("Please wait"),
-                );
-              }
-              if (!snapshot.hasData || snapshot.data == null) {
-                return ListTile(
-                  title: Text("Friend ID: ${friend.friendId}"),
-                  subtitle: const Text("User not found"),
-                );
-              }
-              final userData = snapshot.data!;
-
-              // Ensure ExpansionTile is returned
-              return ExpansionTile(
-                leading: GestureDetector(
-                  onTap: () => _pickImageAndSave(friend.friendId),
-                  child: CircleAvatar(
-                    backgroundImage: _friendImages[friend.friendId]?.isNotEmpty == true
-                        ? FileImage(File(_friendImages[friend.friendId]!))
-                        : const AssetImage('lib/assets/default_profile.png') as ImageProvider,
-                  ),
-                ),
-                title: Text(userData['name'] ?? "Unknown Name"),
-                subtitle: Text(userData['phoneNumber'] ?? "No Phone Number"),
-
-
-                onExpansionChanged: (expanded) async {
-                  if (expanded) {
-                    try {
-                      await _helpers.syncEventsAndGifts(friend.friendId);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Events and gifts synced for ${userData['name']}.")),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Failed to sync events and gifts: $e")),
-                      );
-                    }
-                  }
-                },
-
-                children: [
-                  FutureBuilder<List<Map<String, dynamic>>>(
-                    future: _fetchFriendEvents(friend.friendId),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError) {
-                        return const ListTile(
-                          title: Text("Error loading events."),
-                        );
-                      }
-                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return const ListTile(
-                          title: Text("No events found."),
-                        );
-                      }
-                      final events = List<Map<String, dynamic>>.from(snapshot.data!);
-
-                      events.sort((a, b) {
-                        final statusA = _getEventStatus(a['date']);
-                        final statusB = _getEventStatus(b['date']);
-                        final priority = {"Current": 0, "Upcoming": 1, "Passed": 2};
-                        return priority[statusA]!.compareTo(priority[statusB]!);
-                      });
-
-                      return Column(
-                        children: events.map((event) {
-                          final status = _getEventStatus(event['date']);
-                          return ListTile(
-                            title: Text(event['name'] ?? "Unnamed Event"),
-                            subtitle: Row(
-                              children: [
-                                Text(_formatDate(event['date'])),
-                                const SizedBox(width: 10),
-                                Text(
-                                  status,
-                                  style: TextStyle(color: _getEventStatusColor(status)),
-                                ),
-                              ],
-                            ),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => FriendEventGiftList(
-                                    currentUserId: widget.currentUserId,
-                                    friendId: friend.friendId,
-                                    event: event,
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                        }).toList(),
-                      );
-                    },
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      ),
-
-
-
-
-
-
-
     );
   }
 }

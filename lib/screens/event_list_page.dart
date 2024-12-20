@@ -369,17 +369,24 @@ class _EventListPageState extends State<EventListPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Event List"),
+        backgroundColor: Colors.teal,
         actions: [
           _buildSortOptions(), // Dropdown for sorting options
         ],
       ),
-
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+        child: CircularProgressIndicator(),
+      )
           : _events.isEmpty
-          ? const Center(child: Text("No events found."))
+          ? const Center(
+        child: Text(
+          "No events found.",
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+      )
           : ListView.builder(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.all(12.0),
         itemCount: _events.length,
         itemBuilder: (context, index) {
           final event = _events[index];
@@ -387,90 +394,167 @@ class _EventListPageState extends State<EventListPage> {
           final statusColor = _getEventStatusColor(status);
 
           return Card(
-            margin: const EdgeInsets.symmetric(vertical: 4),
-            child: ListTile(
-              title: Text(event.name),
-              subtitle: Text(
-                "Date: ${DateFormat('yyyy-MM-dd').format(DateTime.parse(event.date))}\n"
-                    "Location: ${event.location}\n"
-                    "Published: ${event.published == 1 ? "Yes" : "No"}",
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    status,
-                    style: TextStyle(
-                      color: statusColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: Icon(
-                      Icons.cloud_upload,
-                      color: event.published == 1 ? Colors.blue : Colors.grey,
-                    ),
-                    onPressed: () async {
-                      if (event.published == 1) {
-                        // Check for internet connection before unpublishing
-                        final isConnected = await checkInternetConnection();
-                        if (!isConnected) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("You need to be connected to the internet to unpublish this event.")),
-                          );
-                          return;
-                        }
-
-                        // Check if the event has pledged gifts
-                        final hasPledged = await hasPledgedGifts(widget.currentUserId, event.id);
-                        if (hasPledged) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Cannot unpublish this event because it has pledged gifts.")),
-                          );
-                          return;
-                        }
-                        // Unpublish the event
-                        await _publishService.unpublishEvent(event);
-                      } else {
-                        // Check for internet connection before publishing
-                        final isConnected = await checkInternetConnection();
-                        if (!isConnected) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("You need to be connected to the internet to publish this event.")),
-                          );
-                          return;
-                        }
-
-                        // Publish the event
-                        await _publishService.publishEvent(event);
-
-                        // Add gifts for the published event to Firebase
-                        await _publishService.addGiftsForEvent(widget.currentUserId, event.id);
-                      }
-
-                      // Reload events to update UI
-                      _loadEvents();
-                    },
-
-
-                    tooltip: event.published == 1 ? "Unpublish Event" : "Publish to Cloud",
-                  ),
-
-                ],
-              ),
+            elevation: 6,
+            margin: const EdgeInsets.symmetric(vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(15),
               onTap: () => _editEvent(event),
+              child: Container(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Icon for event status
+                    Container(
+                      padding: const EdgeInsets.all(8.0),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+
+                      child: Icon(
+                        Icons.edit,
+                        color: statusColor,
+                        size: 15,
+                      ),
+
+
+                    ),
+                    const SizedBox(width: 12),
+                    // Event details
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            event.name,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            "Date: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(event.date))}",
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.black54,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Location: ${event.location}",
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.black54,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Published: ${event.published == 1 ? "Yes" : "No"}",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color:
+                              event.published == 1 ? Colors.green : Colors.red,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Publish/unpublish action
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          status,
+                          style: TextStyle(
+                            color: statusColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        IconButton(
+                          icon: Icon(
+                            Icons.cloud_upload,
+                            size: 28,
+                            color: event.published == 1 ? Colors.blue : Colors.grey,
+                          ),
+                          onPressed: () async {
+                            if (event.published == 1) {
+                              // Check for internet connection before unpublishing
+                              final isConnected = await checkInternetConnection();
+                              if (!isConnected) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        "You need to be connected to the internet to unpublish this event."),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              // Check if the event has pledged gifts
+                              final hasPledged = await hasPledgedGifts(
+                                  widget.currentUserId, event.id);
+                              if (hasPledged) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        "Cannot unpublish this event because it has pledged gifts."),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              // Unpublish the event
+                              await _publishService.unpublishEvent(event);
+                            } else {
+                              // Check for internet connection before publishing
+                              final isConnected = await checkInternetConnection();
+                              if (!isConnected) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        "You need to be connected to the internet to publish this event."),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              // Publish the event
+                              await _publishService.publishEvent(event);
+
+                              // Add gifts for the published event to Firebase
+                              await _publishService.addGiftsForEvent(
+                                  widget.currentUserId, event.id);
+                            }
+
+                            // Reload events to update UI
+                            _loadEvents();
+                          },
+                          tooltip: event.published == 1
+                              ? "Unpublish Event"
+                              : "Publish to Cloud",
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
           );
         },
       ),
-
-
-
-
       floatingActionButton: FloatingActionButton(
         onPressed: _createEvent,
-        child: const Icon(Icons.add),
+        backgroundColor: Colors.teal,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }

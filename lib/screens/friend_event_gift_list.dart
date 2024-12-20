@@ -352,14 +352,42 @@ class _FriendEventGiftListState extends State<FriendEventGiftList> {
                           ],
                         ),
                         trailing: IconButton(
-                          icon: Icon(
-                            Icons.handshake,
-                            color: Colors.green, // Adjust color logic as needed
+                          icon: FutureBuilder<bool>(
+                            future: _isPledgedByUser(widget.friendId, widget.event['id']?.toString() ?? '', gift['id']?.toString() ?? ''),
+                            builder: (context, snapshot) {
+                              final isPledgedByUser = snapshot.data ?? false;
+                              return Icon(
+                                Icons.handshake,
+                                color: _getIconColor(gift['status']?.toString() ?? '', isPledgedByUser),
+                              );
+                            },
                           ),
-                          onPressed: () {
-                            // Handle pledge/unpledge logic
+                          onPressed: () async {
+                            final giftId = gift['id']?.toString() ?? '';
+                            final eventId = widget.event['id']?.toString() ?? '';
+                            final currentStatus = gift['status']?.toString() ?? '';
+
+                            try {
+                              if (currentStatus == "Available") {
+                                await _updateGiftStatusAndRefresh(widget.friendId, eventId, giftId, "Pledged");
+                              } else if (currentStatus == "Pledged") {
+                                final isPledgedByUser = await _isPledgedByUser(widget.friendId, eventId, giftId);
+                                if (isPledgedByUser) {
+                                  await _updateGiftStatusAndRefresh(widget.friendId, eventId, giftId, "Available");
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text("Cannot unpledge a gift pledged by someone else.")),
+                                  );
+                                }
+                              }
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text("Error: ${e.toString()}")),
+                              );
+                            }
                           },
                         ),
+
                         onTap: () {
                           Navigator.push(
                             context,

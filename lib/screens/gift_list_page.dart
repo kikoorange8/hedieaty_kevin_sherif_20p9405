@@ -71,10 +71,16 @@ class _GiftListPageState extends State<GiftListPage> {
   Future<String> _getEventNameFromRepository(int? eventId) async {
     if (eventId == null) return "No Event";
     try {
-      final events = await _eventRepository.fetchEventsForUser(widget.currentUserId);
+      final events = await _eventRepository.fetchEventsForUser(
+          widget.currentUserId);
       final event = events.firstWhere(
             (e) => e.id == eventId.toString(),
-        orElse: () => Event(id: "0", name: "No Event", date: "", location: "", description: "", userId: ""),
+        orElse: () => Event(id: "0",
+            name: "No Event",
+            date: "",
+            location: "",
+            description: "",
+            userId: ""),
       );
       return event.name;
     } catch (e) {
@@ -84,10 +90,10 @@ class _GiftListPageState extends State<GiftListPage> {
   }
 
 
-
   Future<void> _loadEvents() async {
     try {
-      final events = await _eventRepository.fetchEventsForUser(widget.currentUserId); // Use the existing method
+      final events = await _eventRepository.fetchEventsForUser(
+          widget.currentUserId); // Use the existing method
       setState(() => _events = events);
     } catch (e) {
       print("Error loading events: $e");
@@ -129,16 +135,16 @@ class _GiftListPageState extends State<GiftListPage> {
   }
 
 
-
   void _showAddEditDialog({Gift? gift}) {
     showDialog(
       context: context,
-      builder: (context) => GiftAddEditWidget(
-        gift: gift,
-        events: _events,
-        userId: widget.currentUserId,
-        onSave: _loadGifts,
-      ),
+      builder: (context) =>
+          GiftAddEditWidget(
+            gift: gift,
+            events: _events,
+            userId: widget.currentUserId,
+            onSave: _loadGifts,
+          ),
     );
   }
 
@@ -147,18 +153,30 @@ class _GiftListPageState extends State<GiftListPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Gift List"),
+        backgroundColor: Colors.teal,
       ),
       body: Column(
         children: [
+          // Sort Dropdown
           Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: DropdownButton<String>(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 16.0, vertical: 8.0),
+            child: DropdownButtonFormField<String>(
               value: _sortCriteria,
+              decoration: InputDecoration(
+                labelText: "Sort Gifts",
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                filled: true,
+                fillColor: Colors.teal.shade50,
+              ),
               items: const [
                 DropdownMenuItem(value: "name", child: Text("Sort by Name")),
-                DropdownMenuItem(value: "status", child: Text("Sort by Status")),
-                //DropdownMenuItem(value: "event", child: Text("Sort by Event")),
-                DropdownMenuItem(value: "pledged", child: Text("Sort by Pledged")),
+                DropdownMenuItem(
+                    value: "status", child: Text("Sort by Status")),
+                DropdownMenuItem(
+                    value: "pledged", child: Text("Sort by Pledged")),
               ],
               onChanged: (value) {
                 if (value != null) {
@@ -170,11 +188,21 @@ class _GiftListPageState extends State<GiftListPage> {
               },
             ),
           ),
+
+          // Filter Dropdown
           Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: DropdownButton<Event?>(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 16.0, vertical: 8.0),
+            child: DropdownButtonFormField<Event?>(
               value: _selectedEvent,
-              hint: const Text("Filter by Event"),
+              decoration: InputDecoration(
+                labelText: "Filter by Event",
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                filled: true,
+                fillColor: Colors.teal.shade50,
+              ),
               items: [
                 const DropdownMenuItem<Event?>(
                   value: null,
@@ -190,6 +218,8 @@ class _GiftListPageState extends State<GiftListPage> {
               onChanged: _filterGiftsByEvent,
             ),
           ),
+
+          // Gifts List
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -209,8 +239,14 @@ class _GiftListPageState extends State<GiftListPage> {
                   builder: (context, snapshot) {
                     final eventName = snapshot.data ?? "Loading...";
                     return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      elevation: 2,
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       child: ListTile(
+                        contentPadding: const EdgeInsets.all(12),
                         leading: ClipRRect(
                           borderRadius: BorderRadius.circular(8.0),
                           child: gift.image?.isNotEmpty == true
@@ -220,11 +256,17 @@ class _GiftListPageState extends State<GiftListPage> {
                             width: 64,
                             fit: BoxFit.cover,
                           )
-                              : const Icon(Icons.card_giftcard, size: 64),
+                              : const Icon(Icons.card_giftcard, size: 64,
+                              color: Colors.teal),
                         ),
-                        title: Text(gift.name),
+                        title: Text(
+                          gift.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         subtitle: Text(
-                          "Category: ${gift.category}\nPrice: \$${gift.price}\nEvent: $eventName",
+                          "Category: ${gift.category}\nPrice: \$${gift
+                              .price}\nEvent: $eventName",
+                          style: const TextStyle(color: Colors.black54),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -233,31 +275,33 @@ class _GiftListPageState extends State<GiftListPage> {
                             IconButton(
                               icon: Icon(
                                 Icons.edit,
-                                color: gift.status == "Pledged" ? Colors.grey : Colors.blue,
+                                color: gift.status == "Pledged"
+                                    ? Colors.grey
+                                    : Colors.blue,
                               ),
                               onPressed: () async {
-                                // Scenario 1: Gift is pledged
                                 if (gift.status == "Pledged") {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text("Cannot edit a pledged gift."),
+                                      content: Text(
+                                          "Cannot edit a pledged gift."),
                                       duration: Duration(seconds: 2),
                                     ),
                                   );
                                   return;
                                 }
 
-                                // Scenario 2: Gift relates to a published event and no internet
                                 if (gift.eventId != null) {
-                                  // Fetch the associated event
-                                  final event = await _eventRepository.getEventById(gift.eventId.toString());
+                                  final event = await _eventRepository
+                                      .getEventById(gift.eventId.toString());
                                   if (event != null && event.published == 1) {
-                                    // Check for internet connection
                                     final isConnected = await checkInternetConnection();
                                     if (!isConnected) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
                                         const SnackBar(
-                                          content: Text("Cannot edit this gift because it's associated with a published event and you're offline."),
+                                          content: Text(
+                                              "Cannot edit this gift because it's associated with a published event and you're offline."),
                                           duration: Duration(seconds: 2),
                                         ),
                                       );
@@ -265,8 +309,6 @@ class _GiftListPageState extends State<GiftListPage> {
                                     }
                                   }
                                 }
-
-                                // Proceed to edit if all conditions are satisfied
                                 _showAddEditDialog(gift: gift);
                               },
                             ),
@@ -274,31 +316,33 @@ class _GiftListPageState extends State<GiftListPage> {
                             IconButton(
                               icon: Icon(
                                 Icons.delete,
-                                color: gift.status == "Pledged" ? Colors.grey : Colors.red,
+                                color: gift.status == "Pledged"
+                                    ? Colors.grey
+                                    : Colors.red,
                               ),
                               onPressed: () async {
-                                // Scenario 1: Gift is pledged
                                 if (gift.status == "Pledged") {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text("Cannot delete a pledged gift."),
+                                      content: Text(
+                                          "Cannot delete a pledged gift."),
                                       duration: Duration(seconds: 2),
                                     ),
                                   );
                                   return;
                                 }
 
-                                // Scenario 2: Gift relates to a published event and no internet
                                 if (gift.eventId != null) {
-                                  // Fetch the associated event
-                                  final event = await _eventRepository.getEventById(gift.eventId.toString());
+                                  final event = await _eventRepository
+                                      .getEventById(gift.eventId.toString());
                                   if (event != null && event.published == 1) {
-                                    // Check for internet connection
                                     final isConnected = await checkInternetConnection();
                                     if (!isConnected) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
                                         const SnackBar(
-                                          content: Text("Cannot delete this gift because it's associated with a published event and you're offline."),
+                                          content: Text(
+                                              "Cannot delete this gift because it's associated with a published event and you're offline."),
                                           duration: Duration(seconds: 2),
                                         ),
                                       );
@@ -306,22 +350,16 @@ class _GiftListPageState extends State<GiftListPage> {
                                     }
                                   }
                                 }
-
-                                // Proceed to delete if all conditions are satisfied
                                 await _giftService.deleteGift(gift.id);
                                 _loadGifts();
                               },
                             ),
                           ],
                         ),
-
-
-
                       ),
                     );
                   },
                 );
-
               },
             ),
           ),
@@ -329,7 +367,8 @@ class _GiftListPageState extends State<GiftListPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddEditDialog(),
-        child: const Icon(Icons.add),
+        backgroundColor: Colors.teal,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
