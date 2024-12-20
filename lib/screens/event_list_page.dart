@@ -88,7 +88,6 @@ class _EventListPageState extends State<EventListPage> {
     return false; // No pledged gifts found
   }
 
-
   int _sortEvents(Event a, Event b) {
     if (_sortBy == 'date') {
       return DateTime.parse(a.date).compareTo(DateTime.parse(b.date));
@@ -223,7 +222,6 @@ class _EventListPageState extends State<EventListPage> {
     );
   }
 
-
   Future<void> _editEvent(Event event) async {
     if (event.published == 1) {
       // Check for internet connection
@@ -340,7 +338,6 @@ class _EventListPageState extends State<EventListPage> {
       },
     );
   }
-
 
   Widget _buildSortOptions() {
     return DropdownButton<String>(

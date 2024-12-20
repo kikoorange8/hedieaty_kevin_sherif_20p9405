@@ -6,6 +6,7 @@ import '../models/event_model.dart';
 import '../services/gift_list_service.dart';
 import '../repositories/event_repository.dart';
 import 'dart:io';
+import 'package:firebase_database/firebase_database.dart';
 
 class GiftListPage extends StatefulWidget {
   final String currentUserId;
@@ -75,12 +76,13 @@ class _GiftListPageState extends State<GiftListPage> {
           widget.currentUserId);
       final event = events.firstWhere(
             (e) => e.id == eventId.toString(),
-        orElse: () => Event(id: "0",
-            name: "No Event",
-            date: "",
-            location: "",
-            description: "",
-            userId: ""),
+        orElse: () =>
+            Event(id: "0",
+                name: "No Event",
+                date: "",
+                location: "",
+                description: "",
+                userId: ""),
       );
       return event.name;
     } catch (e) {
@@ -134,6 +136,25 @@ class _GiftListPageState extends State<GiftListPage> {
     });
   }
 
+  Future<bool> checkGiftPledgedOrPurchased(String currentUserId, String eventId,
+      String giftId) async {
+    try {
+      final dbRef = FirebaseDatabase.instance.ref();
+      final giftSnapshot = await dbRef.child(
+          'events/$currentUserId/$eventId/gifts/$giftId/status').get();
+
+      if (giftSnapshot.exists) {
+        final status = giftSnapshot.value.toString();
+        if (status == "Pledged" || status == "Purchased") {
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      print("Error checking gift status: $e");
+      return false; // Assume editable if there's an error
+    }
+  }
 
   void _showAddEditDialog({Gift? gift}) {
     showDialog(
@@ -205,14 +226,10 @@ class _GiftListPageState extends State<GiftListPage> {
               ),
               items: [
                 const DropdownMenuItem<Event?>(
-                  value: null,
-                  child: Text("All Events"),
-                ),
+                    value: null, child: Text("All Events")),
                 ..._events.map((event) {
                   return DropdownMenuItem<Event?>(
-                    value: event,
-                    child: Text(event.name),
-                  );
+                      value: event, child: Text(event.name));
                 }).toList(),
               ],
               onChanged: _filterGiftsByEvent,
@@ -234,10 +251,11 @@ class _GiftListPageState extends State<GiftListPage> {
               itemCount: _gifts.length,
               itemBuilder: (context, index) {
                 final gift = _gifts[index];
-                return FutureBuilder<String>(
-                  future: _getEventNameFromRepository(gift.eventId),
+                return FutureBuilder<bool>(
+                  future: checkGiftPledgedOrPurchased(
+                      widget.currentUserId, gift.eventId.toString(), gift.id.toString()),
                   builder: (context, snapshot) {
-                    final eventName = snapshot.data ?? "Loading...";
+                    final isPledgedOrPurchased = snapshot.data ?? false;
                     return Card(
                       elevation: 2,
                       margin: const EdgeInsets.symmetric(
@@ -264,8 +282,7 @@ class _GiftListPageState extends State<GiftListPage> {
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Text(
-                          "Category: ${gift.category}\nPrice: \$${gift
-                              .price}\nEvent: $eventName",
+                          "Category: ${gift.category}\nPrice: \$${gift.price}",
                           style: const TextStyle(color: Colors.black54),
                         ),
                         trailing: Row(
@@ -275,39 +292,20 @@ class _GiftListPageState extends State<GiftListPage> {
                             IconButton(
                               icon: Icon(
                                 Icons.edit,
-                                color: gift.status == "Pledged"
+                                color: isPledgedOrPurchased
                                     ? Colors.grey
                                     : Colors.blue,
                               ),
-                              onPressed: () async {
-                                if (gift.status == "Pledged") {
+                              onPressed: () {
+                                if (isPledgedOrPurchased) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                       content: Text(
-                                          "Cannot edit a pledged gift."),
+                                          "Cannot edit a pledged or purchased gift."),
                                       duration: Duration(seconds: 2),
                                     ),
                                   );
                                   return;
-                                }
-
-                                if (gift.eventId != null) {
-                                  final event = await _eventRepository
-                                      .getEventById(gift.eventId.toString());
-                                  if (event != null && event.published == 1) {
-                                    final isConnected = await checkInternetConnection();
-                                    if (!isConnected) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                              "Cannot edit this gift because it's associated with a published event and you're offline."),
-                                          duration: Duration(seconds: 2),
-                                        ),
-                                      );
-                                      return;
-                                    }
-                                  }
                                 }
                                 _showAddEditDialog(gift: gift);
                               },
@@ -316,39 +314,20 @@ class _GiftListPageState extends State<GiftListPage> {
                             IconButton(
                               icon: Icon(
                                 Icons.delete,
-                                color: gift.status == "Pledged"
+                                color: isPledgedOrPurchased
                                     ? Colors.grey
                                     : Colors.red,
                               ),
                               onPressed: () async {
-                                if (gift.status == "Pledged") {
+                                if (isPledgedOrPurchased) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                       content: Text(
-                                          "Cannot delete a pledged gift."),
+                                          "Cannot delete a pledged or purchased gift."),
                                       duration: Duration(seconds: 2),
                                     ),
                                   );
                                   return;
-                                }
-
-                                if (gift.eventId != null) {
-                                  final event = await _eventRepository
-                                      .getEventById(gift.eventId.toString());
-                                  if (event != null && event.published == 1) {
-                                    final isConnected = await checkInternetConnection();
-                                    if (!isConnected) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                              "Cannot delete this gift because it's associated with a published event and you're offline."),
-                                          duration: Duration(seconds: 2),
-                                        ),
-                                      );
-                                      return;
-                                    }
-                                  }
                                 }
                                 await _giftService.deleteGift(gift.id);
                                 _loadGifts();
