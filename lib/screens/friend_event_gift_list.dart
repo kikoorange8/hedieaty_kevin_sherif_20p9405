@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
-import '../services/gift_image_cache_service.dart'; // Import for image handling
+import '../services/gift_image_cache_service.dart';
 import '../database/database_helper.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'gift_details_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
-class FriendEventGiftList extends StatelessWidget {
+class FriendEventGiftList extends StatefulWidget  {
+
   final String currentUserId;
   final String friendId;
   final Map<String, dynamic> event;
@@ -17,17 +21,167 @@ class FriendEventGiftList extends StatelessWidget {
     required this.event,
   });
 
-  Future<void> pledgeGift(String friendId, String eventId, String giftId) async {
-    final DatabaseReference dbRef = FirebaseDatabase.instance.ref();
+
+  @override
+  State<FriendEventGiftList> createState() => _FriendEventGiftListState();
+}
+class _FriendEventGiftListState extends State<FriendEventGiftList> {
+  late Future<List<Map<String, dynamic>>> _giftsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeGiftsFuture();
+  }
+
+  Color _getIconColor(String status, bool isPledgedByUser) {
+    if (status == "Purchased") {
+      return Colors.amber; // Gold for purchased
+    } else if (status == "Pledged") {
+      return isPledgedByUser ? Colors.blue : Colors
+          .red; // Blue for user's pledge, red for others
+    } else if (status == "Available") {
+      return Colors.green; // Green for available
+    }
+    return Colors.grey; // Default color
+  }
+
+  Future<bool> _isPledgedByUser(String friendId, String eventId,
+      String giftId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'pledgedGifts_${FirebaseAuth.instance.currentUser!.uid}';
+    List<String> pledgedGifts = prefs.getStringList(key) ?? [];
+    return pledgedGifts.contains('$friendId|$eventId|$giftId');
+  }
+
+  Future<void> _updateGiftStatusAndRefresh(String friendId, String eventId,
+      String giftId, String newStatus) async {
+    try {
+      await _updateGiftStatus(friendId, eventId, giftId, newStatus);
+      await _refreshGifts(); // Refresh the gifts list
+    } catch (e) {
+      print("Error updating gift: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: ${e.toString()}")),
+      );
+    }
+  }
+
+  Future<void> _refreshGifts() async {
+    setState(() {
+      _giftsFuture = _fetchGifts(widget.event['id']);
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchGifts(String eventId) async {
+    final db = await DatabaseHelper.instance.database;
+    return await db.query(
+      'gifts',
+      where: 'eventId = ?',
+      whereArgs: [eventId],
+    );
+  }
+
+  Future<void> _updateGiftStatus(String friendId, String eventId, String giftId,
+      String newStatus) async {
+    final dbRef = FirebaseDatabase.instance.ref();
+    final db = await DatabaseHelper.instance.database;
 
     try {
-      await dbRef
-          .child('events/$friendId/$eventId/gifts/$giftId')
-          .update({'status': 'Pledged'});
-      print("Gift $giftId has been pledged.");
+      // Fetch latest gift details from Firebase
+      final giftSnapshot = await dbRef.child(
+          'events/$friendId/$eventId/gifts/$giftId').get();
+      if (!giftSnapshot.exists) {
+        throw Exception("Gift $giftId not found in Firebase.");
+      }
+
+      final giftData = Map<String, dynamic>.from(giftSnapshot.value as Map);
+
+      // Update the status in Firebase
+      await dbRef.child('events/$friendId/$eventId/gifts/$giftId').update(
+          {'status': newStatus});
+
+      // Update the status in SQLite
+      await db.update(
+        'gifts',
+        {'status': newStatus},
+        where: 'id = ?',
+        whereArgs: [giftId],
+      );
+
+      // Update the status in SharedPreferences if needed
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'pledgedGifts_${FirebaseAuth.instance.currentUser!.uid}';
+      List<String> pledgedGifts = prefs.getStringList(key) ?? [];
+      final giftKey = '$friendId|$eventId|$giftId';
+
+      if (newStatus == 'Pledged' && !pledgedGifts.contains(giftKey)) {
+        pledgedGifts.add(giftKey);
+      } else if (newStatus == 'Available' && pledgedGifts.contains(giftKey)) {
+        pledgedGifts.remove(giftKey);
+      }
+      await prefs.setStringList(key, pledgedGifts);
+
+      print("Gift $giftId updated to $newStatus successfully.");
     } catch (e) {
-      print("Error pledging gift: $e");
+      print("Error updating gift $giftId: $e");
     }
+  }
+
+  Future<List<String>> _getPledgedGiftsLocally() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'pledgedGifts_${FirebaseAuth.instance.currentUser!.uid}';
+    return prefs.getStringList(key) ?? [];
+  }
+
+  Future<void> pledgeGiftLocally(String friendId, String eventId,
+      String giftId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'pledgedGifts_${FirebaseAuth.instance.currentUser!.uid}';
+
+    // Fetch existing pledged gifts
+    List<String> pledgedGifts = prefs.getStringList(key) ?? [];
+    final giftKey = '$friendId|$eventId|$giftId';
+
+    if (!pledgedGifts.contains(giftKey)) {
+      pledgedGifts.add(giftKey);
+      await prefs.setStringList(key, pledgedGifts);
+      print("Gift $giftId pledged locally.");
+    }
+  }
+
+  Future<void> unpledgeGiftLocally(String friendId, String eventId,
+      String giftId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'pledgedGifts_${FirebaseAuth.instance.currentUser!.uid}';
+
+    // Fetch existing pledged gifts
+    List<String> pledgedGifts = prefs.getStringList(key) ?? [];
+    final giftKey = '$friendId|$eventId|$giftId';
+
+    if (pledgedGifts.contains(giftKey)) {
+      pledgedGifts.remove(giftKey);
+      await prefs.setStringList(key, pledgedGifts);
+      print("Gift $giftId unpledged locally.");
+    }
+  }
+
+  Future<void> pledgeGift(String friendId, String eventId,
+      String giftId) async {
+    final dbRef = FirebaseDatabase.instance.ref();
+
+    await dbRef
+        .child('events/$friendId/$eventId/gifts/$giftId')
+        .update({'status': 'Pledged'});
+  }
+
+  Future<void> unpledgeGift(String friendId, String eventId,
+      String giftId) async {
+    final dbRef = FirebaseDatabase.instance.ref();
+
+    await dbRef
+        .child('events/$friendId/$eventId/gifts/$giftId')
+        .update({'status': 'Available'});
   }
 
   String _formatDate(String date) {
@@ -63,85 +217,120 @@ class FriendEventGiftList extends StatelessWidget {
     }
   }
 
-  Future<void> unpledgeGift(String friendId, String eventId, String giftId) async {
-    final DatabaseReference dbRef = FirebaseDatabase.instance.ref();
-
-    try {
-      await dbRef
-          .child('events/$friendId/$eventId/gifts/$giftId')
-          .update({'status': 'Available'});
-      print("Gift $giftId has been unpledged.");
-    } catch (e) {
-      print("Error unpledging gift: $e");
-    }
+  void _initializeGiftsFuture() {
+    _giftsFuture = _fetchGifts(widget.event['id']);
   }
-
 
   @override
   Widget build(BuildContext context) {
     final imageService = GiftImageCacheService();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Event Gift List"),
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Event Details at the Top
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Event Name: ${event['name'] ?? 'Unnamed Event'}",
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      body: CustomScrollView(
+        slivers: [
+          // Collapsible AppBar with event details
+          SliverAppBar(
+            expandedHeight: 200.0,
+            pinned: true,
+            backgroundColor: Colors.indigo,
+            flexibleSpace: FlexibleSpaceBar(
+              title: null,
+              background: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0, vertical: 32.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      widget.event['name'] ?? 'Unnamed Event',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Date: ${_formatDate(widget.event['date'] ?? '')}",
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.white70,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Description: ${widget.event['description'] ??
+                          'No description'}",
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.white70,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Status: ${_getEventStatus(widget.event['date'] ?? '')}",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: _getEventStatusColor(
+                          _getEventStatus(widget.event['date'] ?? ''),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  "Description: ${event['description'] ?? 'No description'}",
-                  style: const TextStyle(fontSize: 16),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "Location: ${event['location'] ?? 'No location'}",
-                  style: const TextStyle(fontSize: 16),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "Date: ${_formatDate(event['date'])}",
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ],
+              ),
             ),
           ),
-          const Divider(),
-          // Gifts Section
-          Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: _fetchGifts(event['id']), // Fetch gifts for the event
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return const Center(child: Text("Error loading gifts."));
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text("No gifts found."));
-                }
 
-                final gifts = snapshot.data!;
-                return ListView.builder(
-                  itemCount: gifts.length,
-                  itemBuilder: (context, index) {
+          // Static header for "Gifts" section
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: const Text(
+                "Gifts",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.indigo,
+                ),
+              ),
+            ),
+          ),
+
+          // List of gifts
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: _fetchGifts(widget.event['id']),
+            // Fetch gifts for the event
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return SliverFillRemaining(
+                  child: const Center(child: CircularProgressIndicator()),
+                );
+              }
+              if (snapshot.hasError) {
+                return SliverFillRemaining(
+                  child: const Center(child: Text("Error loading gifts.")),
+                );
+              }
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return SliverFillRemaining(
+                  child: const Center(child: Text("No gifts found.")),
+                );
+              }
+
+              final gifts = snapshot.data!;
+              return SliverList(
+                delegate: SliverChildBuilderDelegate(
+                      (context, index) {
                     final gift = gifts[index];
-                    final giftImage = imageService.decodeBase64Image(gift['image']);
-                    final isPledged = gift['status'] == 'Pledged';
+                    final giftImage = imageService.decodeBase64Image(
+                        gift['image']);
 
                     return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       child: ListTile(
                         leading: giftImage != null
                             ? CircleAvatar(
@@ -152,67 +341,46 @@ class FriendEventGiftList extends StatelessWidget {
                           backgroundColor: Colors.grey,
                           child: Icon(Icons.image_not_supported),
                         ),
-                        title: Text(gift['name'] ?? "Unnamed Gift"),
+                        title: Text(gift['name']?.toString() ?? "Unnamed Gift"),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(gift['description'] ?? "No description"),
-                            Text("Price: \$${gift['price'] ?? '0.00'}"),
+                            Text(gift['description']?.toString() ??
+                                "No description"),
+                            Text("Price: \$${int.tryParse(
+                                gift['price']?.toString() ?? '0') ?? 0}"),
                           ],
                         ),
                         trailing: IconButton(
                           icon: Icon(
                             Icons.handshake,
-                            color: gift['status'] == "Pledged" ? Colors.blue : Colors.grey, // Icon color based on pledge status
-
+                            color: Colors.green, // Adjust color logic as needed
                           ),
-                          onPressed: () async {
-                            try {
-                              final giftId = gift['id'].toString(); // Ensure gift ID is a String
-                              final eventId = event['id'].toString(); // Ensure event ID is a String
-
-                              if (isPledged) {
-                                // Unpledge the gift
-                                await unpledgeGift(friendId, eventId, giftId);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text("Unpledged: ${gift['name']}")),
-                                );
-                              } else {
-                                // Pledge the gift
-                                await pledgeGift(friendId, eventId, giftId);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text("Pledged: ${gift['name']}")),
-                                );
-                              }
-                            } catch (e) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text("Error: ${e.toString()}")),
-                              );
-                            }
+                          onPressed: () {
+                            // Handle pledge/unpledge logic
                           },
                         ),
-
-
-
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  GiftDetailsPage(
+                                    giftId: gift['id']?.toString() ?? '',
+                                  ),
+                            ),
+                          );
+                        },
                       ),
                     );
                   },
-                );
-              },
-            ),
+                  childCount: gifts.length,
+                ),
+              );
+            },
           ),
         ],
       ),
-    );
-  }
-
-  Future<List<Map<String, dynamic>>> _fetchGifts(String eventId) async {
-    // Fetch gifts from SQLite for the given eventId
-    final db = await DatabaseHelper.instance.database;
-    return await db.query(
-      'gifts',
-      where: 'eventId = ?',
-      whereArgs: [eventId],
     );
   }
 }

@@ -15,7 +15,11 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   late String _userId;
-  Map<String, String?> _userDetails = {"name": "", "phoneNumber": "", "email": ""};
+  Map<String, String?> _userDetails = {
+    "name": "",
+    "phoneNumber": "",
+    "email": ""
+  };
   String? _profileImagePath;
 
   final FetchUserService _fetchUserService = FetchUserService();
@@ -36,7 +40,8 @@ class _ProfilePageState extends State<ProfilePage> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _profileImagePath =
-          prefs.getString('profile_image_$_userId') ?? 'lib/assets/default_profile.png';
+          prefs.getString('profile_image_$_userId') ??
+              'lib/assets/default_profile.png';
     });
   }
 
@@ -76,34 +81,84 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Profile")),
+      appBar: AppBar(
+        title: const Text("Profile"),
+        backgroundColor: Colors.indigo,
+      ),
       body: SingleChildScrollView(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 20),
+            // Profile Image
             CircleAvatar(
-              radius: 60,
-              backgroundImage: _profileImagePath != null && _profileImagePath!.startsWith('lib')
+              radius: 70,
+              backgroundColor: Colors.indigo.shade100,
+              backgroundImage: _profileImagePath != null &&
+                  _profileImagePath!.startsWith('lib')
                   ? AssetImage(_profileImagePath!) as ImageProvider
                   : FileImage(File(_profileImagePath!)),
+              child: _profileImagePath == null
+                  ? const Icon(Icons.person, size: 50, color: Colors.indigo)
+                  : null,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 15),
+
+            // Change Profile Image Button
             ElevatedButton(
               onPressed: _updateProfileImage,
-              child: const Text("Change Profile Image"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.indigo,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                "Change Profile Image",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
-            const SizedBox(height: 20),
-            _buildStaticField("Email", _userDetails["email"] ?? "Unknown"),
-            _buildEditableField("Name", _userDetails["name"] ?? "Unknown", "name"),
-            _buildEditableField(
-                "Phone Number", _userDetails["phoneNumber"] ?? "Unknown", "phoneNumber"),
-            const SizedBox(height: 20),
+            const SizedBox(height: 30),
+
+            // Static and Editable Fields
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              decoration: BoxDecoration(
+                color: Colors.indigo.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  _buildStaticField(
+                      "Email", _userDetails["email"] ?? "Unknown"),
+                  _buildEditableField(
+                      "Name", _userDetails["name"] ?? "Unknown", "name"),
+                  _buildEditableField(
+                    "Phone Number",
+                    _userDetails["phoneNumber"] ?? "Unknown",
+                    "phoneNumber",
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 40),
+
+            // Logout Button
             ElevatedButton(
               onPressed: _logout,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white, // Set logout button color to red
+                backgroundColor: Colors.redAccent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 50, vertical: 15),
               ),
-              child: const Text("Logout"),
+              child: const Text(
+                "Logout",
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
@@ -113,8 +168,16 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildStaticField(String label, String value) {
     return ListTile(
-      title: Text(label),
-      subtitle: Text(value),
+      contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      title: Text(
+        label,
+        style: const TextStyle(
+            fontWeight: FontWeight.bold, color: Colors.indigo),
+      ),
+      subtitle: Text(
+        value,
+        style: const TextStyle(fontSize: 16, color: Colors.black87),
+      ),
     );
   }
 
@@ -122,10 +185,18 @@ class _ProfilePageState extends State<ProfilePage> {
     final TextEditingController controller = TextEditingController(text: value);
 
     return ListTile(
-      title: Text(label),
-      subtitle: Text(value),
+      contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      title: Text(
+        label,
+        style: const TextStyle(
+            fontWeight: FontWeight.bold, color: Colors.indigo),
+      ),
+      subtitle: Text(
+        value,
+        style: const TextStyle(fontSize: 16, color: Colors.black87),
+      ),
       trailing: IconButton(
-        icon: const Icon(Icons.edit),
+        icon: const Icon(Icons.edit, color: Colors.indigo),
         onPressed: () {
           showDialog(
             context: context,
@@ -134,19 +205,26 @@ class _ProfilePageState extends State<ProfilePage> {
                 title: Text("Edit $label"),
                 content: TextField(
                   controller: controller,
-                  decoration: InputDecoration(hintText: "Enter new $label"),
+                  decoration: InputDecoration(
+                    hintText: "Enter new $label",
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
                 ),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text("Cancel"),
+                    child: const Text(
+                        "Cancel", style: TextStyle(color: Colors.red)),
                   ),
                   TextButton(
                     onPressed: () async {
                       await _updateField(fieldKey, controller.text.trim());
                       Navigator.pop(context);
                     },
-                    child: const Text("Save"),
+                    child: const Text(
+                        "Save", style: TextStyle(color: Colors.indigo)),
                   ),
                 ],
               );

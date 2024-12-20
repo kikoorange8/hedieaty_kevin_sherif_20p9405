@@ -11,7 +11,7 @@ import '../services/fetch_friend_event_gift_service.dart';
 import 'friends_list_helpers.dart';
 import '../database/database_helper.dart';
 import 'friend_event_gift_list.dart'; // Replace with the correct path
-
+import 'package:firebase_database/firebase_database.dart';
 
 class FriendsListPage extends StatefulWidget {
   final String currentUserId;
@@ -55,6 +55,50 @@ class _FriendsListPageState extends State<FriendsListPage> {
       whereArgs: [friendId],
     );
   }
+
+  Future<void> _updateGiftStatus(String friendId, String eventId, String giftId, String newStatus) async {
+    final dbRef = FirebaseDatabase.instance.ref();
+    final db = await DatabaseHelper.instance.database;
+
+    try {
+      // Fetch latest gift details from Firebase
+      final giftSnapshot = await dbRef.child('events/$friendId/$eventId/gifts/$giftId').get();
+      if (!giftSnapshot.exists) {
+        throw Exception("Gift $giftId not found in Firebase.");
+      }
+
+      final giftData = Map<String, dynamic>.from(giftSnapshot.value as Map);
+
+      // Update the status in Firebase
+      await dbRef.child('events/$friendId/$eventId/gifts/$giftId').update({'status': newStatus});
+
+      // Update the status in SQLite
+      await db.update(
+        'gifts',
+        {'status': newStatus},
+        where: 'id = ?',
+        whereArgs: [giftId],
+      );
+
+      // Update the status in SharedPreferences if needed
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'pledgedGifts_${FirebaseAuth.instance.currentUser!.uid}';
+      List<String> pledgedGifts = prefs.getStringList(key) ?? [];
+      final giftKey = '$friendId|$eventId|$giftId';
+
+      if (newStatus == 'Pledged' && !pledgedGifts.contains(giftKey)) {
+        pledgedGifts.add(giftKey);
+      } else if (newStatus == 'Available' && pledgedGifts.contains(giftKey)) {
+        pledgedGifts.remove(giftKey);
+      }
+      await prefs.setStringList(key, pledgedGifts);
+
+      print("Gift $giftId updated to $newStatus successfully.");
+    } catch (e) {
+      print("Error updating gift $giftId: $e");
+    }
+  }
+
 
   String _getEventStatus(String date) {
     final now = DateTime.now();
@@ -295,10 +339,6 @@ class _FriendsListPageState extends State<FriendsListPage> {
           ),
         ],
       ),
-
-
-
-
 
 
       body: _filteredFriends.isEmpty
