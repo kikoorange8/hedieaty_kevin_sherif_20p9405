@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_database/firebase_database.dart';
 import '../repositories/gift_repository.dart';
 import '../models/gift_model.dart';
 
@@ -28,26 +29,86 @@ class _PledgedGiftPageState extends State<PledgedGiftPage> {
       _isLoading = true;
     });
 
-    // Fetch pledged gifts from the database
-    final dbPledgedGifts = await _giftRepository.fetchGiftsByStatus(
-      status: "Pledged",
-      userId: widget.currentUserId,
-    );
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final pledgedGiftIds = prefs.getStringList('pledgedGifts_${widget.currentUserId}') ?? [];
 
-    // Fetch pledged gift IDs from SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    final key = 'pledgedGifts_${widget.currentUserId}';
-    final pledgedGiftIds = prefs.getStringList(key) ?? [];
+      print("DEBUG: SharedPreferences - Pledged Gift IDs: $pledgedGiftIds");
 
-    // Filter database gifts to only include those pledged locally
-    final localPledgedGifts = dbPledgedGifts.where((gift) {
-      return pledgedGiftIds.contains('${gift.eventId}|${gift.id}');
-    }).toList();
+      // Fetch all "Pledged" gifts from the database
+      final allPledgedGifts = await _giftRepository.fetchGiftsByStatus(
+        status: 'Pledged',
+        userId: widget.currentUserId,
+      );
 
-    setState(() {
-      _pledgedGifts = localPledgedGifts;
-      _isLoading = false;
-    });
+      print("DEBUG: Fetched Gifts: ${allPledgedGifts.map((gift) => gift.toMap()).toList()}");
+
+      // Filter gifts based on SharedPreferences
+      final filteredGifts = allPledgedGifts.where((gift) {
+        final key = '${gift.userId}|${gift.eventId}|${gift.id}';
+        return pledgedGiftIds.contains(key);
+      }).toList();
+
+      print("DEBUG: Filtered Pledged Gifts: ${filteredGifts.map((gift) => gift.toMap()).toList()}");
+
+      setState(() {
+        _pledgedGifts = filteredGifts;
+      });
+    } catch (e) {
+      print("Error fetching pledged gifts: $e");
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _purchaseGift(Gift gift) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'pledgedGifts_${widget.currentUserId}';
+      List<String> pledgedGifts = prefs.getStringList(key) ?? [];
+
+      final giftKey = '${gift.userId}|${gift.eventId}|${gift.id}';
+
+      // Ensure it's a pledged gift
+      if (!pledgedGifts.contains(giftKey)) {
+        throw Exception("Gift is not in pledged status.");
+      }
+
+      // Update Firebase
+      await FirebaseDatabase.instance
+          .ref()
+          .child('events/${gift.userId}/${gift.eventId}/gifts/${gift.id}')
+          .update({'status': 'Purchased'});
+
+      // Update SQLite
+      gift.status = 'Purchased'; // Assuming you update the status directly in SQLite
+      await _giftRepository.updateGift(gift);
+
+      // Remove from SharedPreferences
+      pledgedGifts.remove(giftKey);
+      await prefs.setStringList(key, pledgedGifts);
+
+      // Update local list
+      setState(() {
+        _pledgedGifts = _pledgedGifts.map((g) {
+          if (g.id == gift.id) {
+            g.status = 'Purchased';
+          }
+          return g;
+        }).toList();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Gift '${gift.name}' marked as Purchased.")),
+      );
+    } catch (e) {
+      print("Error purchasing gift: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to mark gift as Purchased.")),
+      );
+    }
   }
 
   @override
@@ -121,17 +182,19 @@ class _PledgedGiftPageState extends State<PledgedGiftPage> {
                           color: Colors.black54,
                         ),
                       ),
-                      trailing: Text(
-                        gift.status,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: gift.status == "Pledged"
-                              ? Colors.blue
-                              : gift.status == "Purchased"
+                      trailing: IconButton(
+                        icon: Icon(
+                          Icons.shopping_cart,
+                          color: gift.status == "Purchased"
                               ? Colors.amber
-                              : Colors.green,
+                              : Colors.grey,
                         ),
+                        onPressed: gift.status == "Purchased"
+                            ? null
+                            : () => _purchaseGift(gift),
+                        tooltip: gift.status == "Purchased"
+                            ? "Already Purchased"
+                            : "Mark as Purchased",
                       ),
                     ),
                   );
