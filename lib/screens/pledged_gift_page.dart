@@ -9,6 +9,7 @@ import '../models/gift_model.dart';
 import '../models/user_model.dart';
 import '../models/event_model.dart';
 import '../services/gift_image_cache_service.dart';
+import 'gift_details_page.dart';
 
 class PledgedGiftsPage extends StatefulWidget {
   @override
@@ -129,88 +130,99 @@ class _PledgedGiftsPageState extends State<PledgedGiftsPage> {
         itemBuilder: (context, index) {
           final giftDetails = _detailedPledgedGifts[index];
           final giftImage = _imageService.decodeBase64Image(giftDetails['giftImage']);
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  // Display gift image or placeholder
-                  CircleAvatar(
-                    backgroundImage: giftImage != null ? MemoryImage(giftImage) : null,
-                    radius: 32,
-                    backgroundColor: Colors.grey[200],
-                    child: giftImage == null
-                        ? const Icon(Icons.card_giftcard, size: 32, color: Colors.grey)
-                        : null,
+
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => GiftDetailsPage(
+                    giftId: giftDetails['giftId'],
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+              );
+            },
+            child: Card(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundImage: giftImage != null ? MemoryImage(giftImage) : null,
+                      radius: 32,
+                      backgroundColor: Colors.grey[200],
+                      child: giftImage == null
+                          ? const Icon(Icons.card_giftcard, size: 32, color: Colors.grey)
+                          : null,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Gift Name: ${giftDetails['giftName']}',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            'Gift Price: \$${giftDetails['giftPrice']}',
+                            style: const TextStyle(fontSize: 14, color: Colors.grey),
+                          ),
+                          Text(
+                            'Friend Name: ${giftDetails['friendName']}',
+                            style: const TextStyle(fontSize: 14, color: Colors.grey),
+                          ),
+                          Text(
+                            'Event Name: ${giftDetails['eventName']}',
+                            style: const TextStyle(fontSize: 14, color: Colors.grey),
+                          ),
+                          Text(
+                            'Event Date: ${giftDetails['eventDate']}',
+                            style: const TextStyle(fontSize: 14, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
                       children: [
-                        Text(
-                          'Gift Name: ${giftDetails['giftName']}',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        Icon(
+                          Icons.handshake,
+                          color: giftDetails['status'] == "Purchased" ? Colors.grey : Colors.green,
+                          size: 30,
                         ),
-                        Text(
-                          'Gift Price: \$${giftDetails['giftPrice']}',
-                          style: const TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                        Text(
-                          'Friend Name: ${giftDetails['friendName']}',
-                          style: const TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                        Text(
-                          'Event Name: ${giftDetails['eventName']}',
-                          style: const TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                        Text(
-                          'Event Date: ${giftDetails['eventDate']}',
-                          style: const TextStyle(fontSize: 14, color: Colors.grey),
+                        const SizedBox(height: 8),
+                        IconButton(
+                          icon: Icon(
+                            Icons.shopping_cart,
+                            color: giftDetails['status'] == "Purchased" ? Colors.amber : Colors.grey,
+                          ),
+                          onPressed: () {
+                            _toggleGiftStatus(
+                              giftDetails['friendId'],
+                              giftDetails['eventId'],
+                              giftDetails['giftId'],
+                              giftDetails['status'],
+                            );
+
+                            if (giftDetails['status'] == "Pledged") {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text("Gift purchased"),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          },
                         ),
                       ],
                     ),
-                  ),
-                  Column(
-                    children: [
-                      Icon(
-                        Icons.handshake,
-                        color: giftDetails['status'] == "Purchased" ? Colors.grey : Colors.green,
-                        size: 30,
-                      ),
-                      const SizedBox(height: 8),
-                      IconButton(
-                        icon: Icon(
-                          Icons.shopping_cart,
-                          color: giftDetails['status'] == "Purchased" ? Colors.amber : Colors.grey,
-                        ),
-                        onPressed: () {
-                          _toggleGiftStatus(
-                            giftDetails['friendId'],
-                            giftDetails['eventId'],
-                            giftDetails['giftId'],
-                            giftDetails['status'],
-                          );
-
-                          if (giftDetails['status'] == "Pledged") {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text("Gift purchased"),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                          }
-                        },
-
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
