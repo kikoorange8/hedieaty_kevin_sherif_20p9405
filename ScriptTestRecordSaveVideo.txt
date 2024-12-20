@@ -1,0 +1,156 @@
+adb install "C:/Users/kikoo/Desktop/Mobile Project/hedieaty_kevin_sherif_20p9405/build/app/outputs/flutter-apk/app-release.apk"
+adb shell screenrecord /sdcard/test.mp4
+
+add device 1: /dev/input/event1
+  name:     "AT Translated Set 2 keyboard"
+add device 2: /dev/input/event0
+  name:     "Power Button"
+add device 3: /dev/input/event2
+  name:     "virtio_input_multi_touch_1"
+add device 4: /dev/input/event3
+  name:     "virtio_input_multi_touch_2"
+add device 5: /dev/input/event4
+  name:     "virtio_input_multi_touch_3"
+add device 6: /dev/input/event5
+  name:     "virtio_input_multi_touch_4"
+add device 7: /dev/input/event6
+  name:     "virtio_input_multi_touch_5"
+add device 8: /dev/input/event7
+  name:     "virtio_input_multi_touch_6"
+add device 9: /dev/input/event8
+  name:     "virtio_input_multi_touch_7"
+add device 10: /dev/input/event9
+  name:     "virtio_input_multi_touch_8"
+add device 11: /dev/input/event10
+  name:     "virtio_input_multi_touch_9"
+add device 12: /dev/input/event11
+  name:     "virtio_input_multi_touch_10"
+add device 13: /dev/input/event12
+  name:     "virtio_input_multi_touch_11"
+add device 14: /dev/input/event13
+  name:     "qwerty2"
+/dev/input/event2: 0003 0039 00000000
+/dev/input/event2: 0003 0035 000022d7
+/dev/input/event2: 0003 0036 000077e3
+/dev/input/event2: 0003 003a 00000400
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 003a 00000000
+/dev/input/event2: 0003 0039 ffffffff
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0039 00000000
+/dev/input/event2: 0003 003a 00000400
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 003a 00000000
+/dev/input/event2: 0003 0039 ffffffff
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0039 00000000
+/dev/input/event2: 0003 0035 00004758
+/dev/input/event2: 0003 0036 00007b32
+/dev/input/event2: 0003 003a 00000400
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 003a 00000000
+/dev/input/event2: 0003 0039 ffffffff
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0039 00000000
+/dev/input/event2: 0003 003a 00000400
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 003a 00000000
+/dev/input/event2: 0003 0039 ffffffff
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0039 00000000
+/dev/input/event2: 0003 0035 000070f1
+/dev/input/event2: 0003 0036 00003910
+/dev/input/event2: 0003 003a 00000400
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 003a 00000000
+/dev/input/event2: 0003 0039 ffffffff
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0039 00000000
+/dev/input/event2: 0003 0035 00002573
+/dev/input/event2: 0003 0036 00007680
+/dev/input/event2: 0003 003a 00000400
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0035 000025ec
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 003a 00000000
+/dev/input/event2: 0003 0039 ffffffff
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0039 00000000
+/dev/input/event2: 0003 0035 00006dfb
+/dev/input/event2: 0003 0036 00002c88
+/dev/input/event2: 0003 003a 00000400
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 003a 00000000
+/dev/input/event2: 0003 0039 ffffffff
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0039 00000000
+/dev/input/event2: 0003 0036 00002cbe
+/dev/input/event2: 0003 003a 00000400
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 003a 00000000
+/dev/input/event2: 0003 0039 ffffffff
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0039 00000000
+/dev/input/event2: 0003 0035 00001480
+/dev/input/event2: 0003 0036 000077ad
+/dev/input/event2: 0003 003a 00000400
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 003a 00000000
+/dev/input/event2: 0003 0039 ffffffff
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0039 00000000
+/dev/input/event2: 0003 0035 00006ecf
+/dev/input/event2: 0003 0036 00001db4
+/dev/input/event2: 0003 003a 00000400
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 003a 00000000
+/dev/input/event2: 0003 0039 ffffffff
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0039 00000000
+/dev/input/event2: 0003 0035 00003888
+/dev/input/event2: 0003 0036 00002777
+/dev/input/event2: 0003 003a 00000400
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 003a 00000000
+/dev/input/event2: 0003 0039 ffffffff
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0039 00000000
+/dev/input/event2: 0003 003a 00000400
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 003a 00000000
+/dev/input/event2: 0003 0039 ffffffff
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0039 00000000
+/dev/input/event2: 0003 0035 00006d81
+/dev/input/event2: 0003 0036 00003b69
+/dev/input/event2: 0003 003a 00000400
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 003a 00000000
+/dev/input/event2: 0003 0039 ffffffff
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0039 00000000
+/dev/input/event2: 0003 0035 000007f0
+/dev/input/event2: 0003 0036 0000080d
+/dev/input/event2: 0003 003a 00000400
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 003a 00000000
+/dev/input/event2: 0003 0039 ffffffff
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0039 00000000
+/dev/input/event2: 0003 0035 00005bbb
+/dev/input/event2: 0003 0036 00007716
+/dev/input/event2: 0003 003a 00000400
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 003a 00000000
+/dev/input/event2: 0003 0039 ffffffff
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0039 00000000
+/dev/input/event2: 0003 0035 00006ecf
+/dev/input/event2: 0003 0036 00002d8b
+/dev/input/event2: 0003 003a 00000400
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 003a 00000000
+/dev/input/event2: 0003 0039 ffffffff
+/dev/input/event2: 0000 0000 00000000
+
+adb pull /sdcard/test.mp4 "C:\Users\kikoo\Desktop\test.mp4"
