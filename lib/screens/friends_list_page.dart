@@ -245,12 +245,16 @@ class _FriendsListPageState extends State<FriendsListPage> {
     }
   }
 
+  Future<void> refreshFriendsList() async {
+    await _loadFriends();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Friends List"),
+
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48.0),
           child: Padding(
@@ -332,14 +336,23 @@ class _FriendsListPageState extends State<FriendsListPage> {
                 ),
                 title: Text(userData['name'] ?? "Unknown Name"),
                 subtitle: Text(userData['phoneNumber'] ?? "No Phone Number"),
+
+
                 onExpansionChanged: (expanded) async {
                   if (expanded) {
-                    await _helpers.syncEventsAndGifts(friend.friendId);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Events and gifts synced for ${userData['name']}.")),
-                    );
+                    try {
+                      await _helpers.syncEventsAndGifts(friend.friendId);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Events and gifts synced for ${userData['name']}.")),
+                      );
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Failed to sync events and gifts: $e")),
+                      );
+                    }
                   }
                 },
+
                 children: [
                   FutureBuilder<List<Map<String, dynamic>>>(
                     future: _fetchFriendEvents(friend.friendId),

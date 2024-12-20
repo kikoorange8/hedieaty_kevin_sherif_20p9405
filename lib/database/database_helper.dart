@@ -108,6 +108,12 @@ class DatabaseHelper {
     ''');
   }
 
+  Future<int> delete(String table, {String? where, List<Object?>? whereArgs}) async {
+    final db = await database;
+    return await db.delete(table, where: where, whereArgs: whereArgs);
+  }
+
+
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     print("Upgrading database from version $oldVersion to $newVersion...");
 
@@ -117,7 +123,24 @@ class DatabaseHelper {
     }
   }
 
+  // Query method
+  Future<List<Map<String, dynamic>>> query(String sql, [List<Object?>? arguments]) async {
+    final db = await database;
+    return await db.rawQuery(sql, arguments);
+  }
 
+  // Update method
+  Future<int> update(String table, Map<String, dynamic> values,
+      {String? where, List<Object?>? whereArgs}) async {
+    final db = await database;
+    return await db.update(table, values, where: where, whereArgs: whereArgs);
+  }
+
+  // Insert method
+  Future<int> insert(String table, Map<String, dynamic> values) async {
+    final db = await database;
+    return await db.insert(table, values);
+  }
 
   Future<int> addUser(UserModel user) async {
     try {
