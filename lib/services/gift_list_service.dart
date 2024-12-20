@@ -17,16 +17,17 @@ class GiftListService {
   }
 
   // Add a new gift
-  Future<void> addGift(Gift gift) async {
+  Future<void> addGift(Gift gift, {bool isPublished = false}) async {
     try {
+      // Add the gift to SQLite
       await _giftRepository.addGift(gift);
-      print("Gift added to SQLite: \${gift.toMap()}");
 
-      // If the gift is associated with a published event, add to Firebase
-      if (gift.eventId != null) {
-        final event = await _eventRepository.getEventById(gift.eventId.toString());
-        if (event != null && event.published == 1) {
-          await _addGiftToFirebase(event.userId, event.id, gift);
+      // If the event is published, upload the gift to Firebase
+      if (isPublished) {
+        final eventId = gift.eventId?.toString() ?? '';
+        if (eventId.isNotEmpty) {
+          await uploadGiftToFirebase(gift.userId, eventId, gift);
+          print("Gift uploaded to Firebase for Event ID $eventId.");
         }
       }
     } catch (e) {
@@ -34,6 +35,26 @@ class GiftListService {
       rethrow;
     }
   }
+
+  Future<void> uploadGiftToFirebase(String userId, String eventId, Gift gift) async {
+    final DatabaseReference ref = FirebaseDatabase.instance.ref('events/$userId/$eventId/gifts/${gift.id}');
+    try {
+      await ref.set({
+        'id': gift.id.toString(),
+        'name': gift.name,
+        'description': gift.description,
+        'category': gift.category,
+        'price': gift.price,
+        'status': gift.status,
+        'image': gift.image,
+      });
+      print("Gift uploaded to Firebase for Event ID $eventId.");
+    } catch (e) {
+      print("Error uploading gift to Firebase: $e");
+      rethrow;
+    }
+  }
+
 
   // Update an existing gift
   Future<void> updateGift(Gift oldGift, Gift updatedGift) async {
@@ -69,7 +90,7 @@ class GiftListService {
   // Delete a gift
   Future<void> deleteGift(int giftId) async {
     try {
-      final gift = await _giftRepository.getGiftById(giftId);
+      final gift = await _giftRepository.getGiftById(giftId.toString());
       if (gift != null) {
         // If the gift is part of a published event, delete it from Firebase
         if (gift.eventId != null) {
