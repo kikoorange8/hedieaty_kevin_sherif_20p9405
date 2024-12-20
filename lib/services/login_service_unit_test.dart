@@ -1,11 +1,15 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hedieaty_kevin_sherif_20p9405/repositories/user_repository.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  //final FirebaseAuth _auth = FirebaseAuth.instance;
 
-
+  // testing
+  final FirebaseAuth _auth;
+  // Allow injecting a custom FirebaseAuth instance for testing
+  LoginService({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
 
   // Login with email and password
   Future<User?> login(String email, String password) async {
@@ -16,7 +20,7 @@ class LoginService {
       );
       return result.user;
     } catch (e) {
-        print("Wrong Email or Password: $e");
+      print("Wrong Email or Password: $e");
       return null;
     }
   }
