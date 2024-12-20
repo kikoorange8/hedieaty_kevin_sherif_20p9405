@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import '../notification/notification_listener.dart';
 import 'profile_page.dart';
 import 'event_list_page.dart';
 import 'gift_list_page.dart';
 import 'pledged_gift_page.dart';
 import 'package:hedieaty_kevin_sherif_20p9405/screens/friends_list_page.dart';
+import '../notification/notification_listener.dart' as custom_notification_listener;
+
 
 // Updating friends table
 import '../services/fetching_friends_service.dart';
@@ -20,6 +23,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   final FetchingFriendsService _fetchingFriendsService = FetchingFriendsService();
+  late final custom_notification_listener.NotificationListener _notificationListener;
 
   Future<void> _fetchFriends() async {
     try {
@@ -41,6 +45,21 @@ class _HomeScreenState extends State<HomeScreen> {
         SnackBar(content: Text("Error syncing friends: $e")),
       );
     }
+  }
+
+  void initState() {
+    super.initState();
+
+    // Initialize the notification listener with the current user ID
+    _notificationListener = custom_notification_listener.NotificationListener();
+    _notificationListener.startListening(widget.currentUserId, context); // Pass the user ID and context
+  }
+
+  @override
+  void dispose() {
+    // Stop listening when the widget is disposed
+    _notificationListener.stopListening();
+    super.dispose();
   }
 
   @override

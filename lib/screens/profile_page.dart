@@ -15,11 +15,7 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   late String _userId;
-  Map<String, String?> _userDetails = {
-    "name": "",
-    "phoneNumber": "",
-    "email": ""
-  };
+  Map<String, String?> _userDetails = {"name": "", "phoneNumber": "", "email": ""};
   String? _profileImagePath;
 
   final FetchUserService _fetchUserService = FetchUserService();
@@ -30,18 +26,28 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     final currentUser = FirebaseAuth.instance.currentUser;
-    _userId = currentUser?.uid ?? '';
-    _loadProfileImage();
-    _fetchUserDetails();
+
+    if (currentUser != null) {
+      _userId = currentUser.uid;
+      print("User ID: $_userId");
+      _loadProfileImage();
+      _fetchUserDetails();
+    } else {
+      // Handle the case where the user is not authenticated
+      print("Error: No authenticated user found.");
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacementNamed(context, '/login'); // Redirect to login page
+      });
+    }
   }
+
 
   // Load image from SharedPreferences
   Future<void> _loadProfileImage() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _profileImagePath =
-          prefs.getString('profile_image_$_userId') ??
-              'lib/assets/default_profile.png';
+          prefs.getString('profile_image_$_userId') ?? 'lib/assets/default_profile.png';
     });
   }
 
@@ -94,8 +100,7 @@ class _ProfilePageState extends State<ProfilePage> {
             CircleAvatar(
               radius: 70,
               backgroundColor: Colors.indigo.shade100,
-              backgroundImage: _profileImagePath != null &&
-                  _profileImagePath!.startsWith('lib')
+              backgroundImage: _profileImagePath != null && _profileImagePath!.startsWith('lib')
                   ? AssetImage(_profileImagePath!) as ImageProvider
                   : FileImage(File(_profileImagePath!)),
               child: _profileImagePath == null
@@ -129,10 +134,8 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               child: Column(
                 children: [
-                  _buildStaticField(
-                      "Email", _userDetails["email"] ?? "Unknown"),
-                  _buildEditableField(
-                      "Name", _userDetails["name"] ?? "Unknown", "name"),
+                  _buildStaticField("Email", _userDetails["email"] ?? "Unknown"),
+                  _buildEditableField("Name", _userDetails["name"] ?? "Unknown", "name"),
                   _buildEditableField(
                     "Phone Number",
                     _userDetails["phoneNumber"] ?? "Unknown",
@@ -151,13 +154,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 50, vertical: 15),
+                padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
               ),
               child: const Text(
                 "Logout",
-                style: TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold),
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -171,8 +172,7 @@ class _ProfilePageState extends State<ProfilePage> {
       contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       title: Text(
         label,
-        style: const TextStyle(
-            fontWeight: FontWeight.bold, color: Colors.indigo),
+        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo),
       ),
       subtitle: Text(
         value,
@@ -188,8 +188,7 @@ class _ProfilePageState extends State<ProfilePage> {
       contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       title: Text(
         label,
-        style: const TextStyle(
-            fontWeight: FontWeight.bold, color: Colors.indigo),
+        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo),
       ),
       subtitle: Text(
         value,
@@ -215,16 +214,14 @@ class _ProfilePageState extends State<ProfilePage> {
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text(
-                        "Cancel", style: TextStyle(color: Colors.red)),
+                    child: const Text("Cancel", style: TextStyle(color: Colors.red)),
                   ),
                   TextButton(
                     onPressed: () async {
                       await _updateField(fieldKey, controller.text.trim());
                       Navigator.pop(context);
                     },
-                    child: const Text(
-                        "Save", style: TextStyle(color: Colors.indigo)),
+                    child: const Text("Save", style: TextStyle(color: Colors.indigo)),
                   ),
                 ],
               );

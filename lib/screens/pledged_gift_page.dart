@@ -10,6 +10,7 @@ import '../models/user_model.dart';
 import '../models/event_model.dart';
 import '../services/gift_image_cache_service.dart';
 import 'gift_details_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class PledgedGiftsPage extends StatefulWidget {
   @override
@@ -28,6 +29,48 @@ class _PledgedGiftsPageState extends State<PledgedGiftsPage> {
     super.initState();
     _fetchPledgedGiftsDetails();
   }
+
+
+  Future<void> _toggleGiftStatus(String friendId, String eventId, String giftId, String currentStatus) async {
+    String newStatus = currentStatus == "Purchased" ? "Pledged" : "Purchased";
+    try {
+      await _updateGiftStatus(friendId, eventId, giftId, newStatus);
+
+      // Send a notification based on the new status
+      String notificationMessage = newStatus == "Purchased"
+          ? "Gift $giftId has been purchased!"
+          : "Gift $giftId has been pledged again!";
+      await _sendNotificationToFriend(giftId, friendId, message: notificationMessage);
+
+      await _fetchPledgedGiftsDetails();
+    } catch (e) {
+      print("Error toggling gift status: $e");
+    }
+  }
+
+  // Function to send a notification
+  Future<void> _sendNotificationToFriend(String giftId, String friendId, {required String message}) async {
+    try {
+      final currentUserId = FirebaseAuth.instance.currentUser!.uid;
+
+      // Send the notification to Firebase for the friend
+      final notificationRef = FirebaseDatabase.instance
+          .ref('notifications/$friendId')
+          .push(); // Pushes a new notification for the friend
+
+      // Set notification data
+      await notificationRef.set({
+        'message': message,
+        'from': currentUserId,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+
+      print("Notification sent to $friendId for gift $giftId: $message");
+    } catch (e) {
+      print("Error sending notification to $friendId: $e");
+    }
+  }
+
 
   Future<void> _fetchPledgedGiftsDetails() async {
     final prefs = await SharedPreferences.getInstance();
@@ -102,15 +145,7 @@ class _PledgedGiftsPageState extends State<PledgedGiftsPage> {
     }
   }
 
-  Future<void> _toggleGiftStatus(String friendId, String eventId, String giftId, String currentStatus) async {
-    String newStatus = currentStatus == "Purchased" ? "Pledged" : "Purchased";
-    try {
-      await _updateGiftStatus(friendId, eventId, giftId, newStatus);
-      await _fetchPledgedGiftsDetails();
-    } catch (e) {
-      print("Error toggling gift status: $e");
-    }
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -201,24 +236,27 @@ class _PledgedGiftsPageState extends State<PledgedGiftsPage> {
                             Icons.shopping_cart,
                             color: giftDetails['status'] == "Purchased" ? Colors.amber : Colors.grey,
                           ),
-                          onPressed: () {
-                            _toggleGiftStatus(
+                          onPressed: () async {
+                            await _toggleGiftStatus(
                               giftDetails['friendId'],
                               giftDetails['eventId'],
                               giftDetails['giftId'],
                               giftDetails['status'],
                             );
 
-                            if (giftDetails['status'] == "Pledged") {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text("Gift purchased"),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                            }
+                            String statusMessage = giftDetails['status'] == "Pledged"
+                                ? "Gift purchased"
+                                : "Gift returned to pledged status";
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(statusMessage),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
                           },
                         ),
+
                       ],
                     ),
                   ],

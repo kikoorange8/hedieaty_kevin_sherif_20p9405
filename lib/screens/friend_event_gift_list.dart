@@ -82,6 +82,29 @@ class _FriendEventGiftListState extends State<FriendEventGiftList> {
     );
   }
 
+  Future<void> sendNotificationToFriend(String giftId, String friendId, {String? message}) async {
+    final currentUserId = FirebaseAuth.instance.currentUser!.uid;
+    print('Writing to path: notifications/$friendId');
+
+    // Set a default message if none is provided
+    message ??= 'Gift $giftId has been pledged!';
+
+    // Send the notification to Firebase for the friend
+    final notificationRef = FirebaseDatabase.instance
+        .ref('notifications/$friendId')
+        .push(); // Pushes a new notification for the friend
+
+    // Set notification data
+    await notificationRef.set({
+      'message': message,
+      'from': currentUserId,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+
+    print("Notification sent to $friendId for gift $giftId: $message");
+  }
+
+
   Future<void> _updateGiftStatus(String friendId, String eventId, String giftId,
       String newStatus) async {
     final dbRef = FirebaseDatabase.instance.ref();
@@ -117,8 +140,10 @@ class _FriendEventGiftListState extends State<FriendEventGiftList> {
 
       if (newStatus == 'Pledged' && !pledgedGifts.contains(giftKey)) {
         pledgedGifts.add(giftKey);
+        await sendNotificationToFriend(giftId, friendId); // Notify friend for pledge
       } else if (newStatus == 'Available' && pledgedGifts.contains(giftKey)) {
         pledgedGifts.remove(giftKey);
+        await sendNotificationToFriend(giftId, friendId, message: "Gift $giftId has been unpledged!"); // Notify friend for unpledge
       }
       await prefs.setStringList(key, pledgedGifts);
 
