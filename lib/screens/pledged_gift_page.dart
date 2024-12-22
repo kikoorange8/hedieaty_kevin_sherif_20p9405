@@ -31,25 +31,33 @@ class _PledgedGiftsPageState extends State<PledgedGiftsPage> {
   }
 
 
-  Future<void> _toggleGiftStatus(String friendId, String eventId, String giftId, String currentStatus) async {
+  Future<void> _toggleGiftStatus(String friendId, String eventId, String giftId,
+      String currentStatus) async {
     String newStatus = currentStatus == "Purchased" ? "Pledged" : "Purchased";
     try {
+      // Update the status in Firebase and SQLite
       await _updateGiftStatus(friendId, eventId, giftId, newStatus);
+
+      // Fetch the gift name from SQLite
+      final giftDetails = await _giftRepository.getGiftById(giftId);
+      final giftName = giftDetails?.name ?? "Unnamed Gift";
 
       // Send a notification based on the new status
       String notificationMessage = newStatus == "Purchased"
-          ? "Gift $giftId has been purchased!"
-          : "Gift $giftId has been pledged again!";
-      await _sendNotificationToFriend(giftId, friendId, message: notificationMessage);
+          ? "Gift $giftName has been purchased!"
+          : "Gift $giftName has been returned to pledged status!";
+      await _sendNotificationToFriend(
+          giftName, friendId, message: notificationMessage);
 
+      // Refresh the pledged gifts list
       await _fetchPledgedGiftsDetails();
     } catch (e) {
       print("Error toggling gift status: $e");
     }
   }
 
-  // Function to send a notification
-  Future<void> _sendNotificationToFriend(String giftId, String friendId, {required String message}) async {
+  Future<void> _sendNotificationToFriend(String giftName, String friendId,
+      {required String message}) async {
     try {
       final currentUserId = FirebaseAuth.instance.currentUser!.uid;
 
@@ -65,7 +73,7 @@ class _PledgedGiftsPageState extends State<PledgedGiftsPage> {
         'timestamp': DateTime.now().toIso8601String(),
       });
 
-      print("Notification sent to $friendId for gift $giftId: $message");
+      print("Notification sent to $friendId for gift $giftName: $message");
     } catch (e) {
       print("Error sending notification to $friendId: $e");
     }
@@ -90,10 +98,13 @@ class _PledgedGiftsPageState extends State<PledgedGiftsPage> {
 
               // Fetch details from the database
               Gift? giftDetails = await _giftRepository.getGiftById(giftId);
-              UserModel? userDetails = await _userRepository.fetchUserById(friendId);
-              Event? eventDetails = await _eventRepository.getEventById(eventId);
+              UserModel? userDetails = await _userRepository.fetchUserById(
+                  friendId);
+              Event? eventDetails = await _eventRepository.getEventById(
+                  eventId);
 
-              if (giftDetails != null && userDetails != null && eventDetails != null) {
+              if (giftDetails != null && userDetails != null &&
+                  eventDetails != null) {
                 detailedPledgedGifts.add({
                   'giftId': giftId,
                   'friendId': friendId,
@@ -123,13 +134,15 @@ class _PledgedGiftsPageState extends State<PledgedGiftsPage> {
     return "${eventDate.day}/${eventDate.month}/${eventDate.year}";
   }
 
-  Future<void> _updateGiftStatus(String friendId, String eventId, String giftId, String newStatus) async {
+  Future<void> _updateGiftStatus(String friendId, String eventId, String giftId,
+      String newStatus) async {
     final dbRef = FirebaseDatabase.instance.ref();
     final db = await DatabaseHelper.instance.database;
 
     try {
       // Update the status in Firebase
-      await dbRef.child('events/$friendId/$eventId/gifts/$giftId').update({'status': newStatus});
+      await dbRef.child('events/$friendId/$eventId/gifts/$giftId').update(
+          {'status': newStatus});
 
       // Update the status in SQLite
       await db.update(
@@ -146,53 +159,60 @@ class _PledgedGiftsPageState extends State<PledgedGiftsPage> {
   }
 
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pledged Gifts'),
+        backgroundColor: Colors.teal,
       ),
       body: _detailedPledgedGifts.isEmpty
           ? Center(
         child: const Text(
           'No pledged gifts found.',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              fontSize: 16, fontWeight: FontWeight.bold, color: Colors.teal),
         ),
       )
           : ListView.builder(
         itemCount: _detailedPledgedGifts.length,
         itemBuilder: (context, index) {
           final giftDetails = _detailedPledgedGifts[index];
-          final giftImage = _imageService.decodeBase64Image(giftDetails['giftImage']);
+          final giftImage = _imageService.decodeBase64Image(
+              giftDetails['giftImage']);
 
           return GestureDetector(
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => GiftDetailsPage(
-                    giftId: giftDetails['giftId'],
-                  ),
+                  builder: (context) =>
+                      GiftDetailsPage(
+                        giftId: giftDetails['giftId'],
+                      ),
                 ),
               );
             },
             child: Card(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              elevation: 4,
+              elevation: 6,
+              shadowColor: Colors.teal.shade100,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
+              color: Colors.teal.shade50,
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
                   children: [
                     CircleAvatar(
-                      backgroundImage: giftImage != null ? MemoryImage(giftImage) : null,
+                      backgroundImage: giftImage != null ? MemoryImage(
+                          giftImage) : null,
                       radius: 32,
-                      backgroundColor: Colors.grey[200],
+                      backgroundColor: Colors.teal.shade100,
                       child: giftImage == null
-                          ? const Icon(Icons.card_giftcard, size: 32, color: Colors.grey)
+                          ? const Icon(
+                          Icons.card_giftcard, size: 32, color: Colors.white)
                           : null,
                     ),
                     const SizedBox(width: 16),
@@ -202,23 +222,29 @@ class _PledgedGiftsPageState extends State<PledgedGiftsPage> {
                         children: [
                           Text(
                             'Gift Name: ${giftDetails['giftName']}',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: TextStyle(fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.teal),
                           ),
                           Text(
                             'Gift Price: \$${giftDetails['giftPrice']}',
-                            style: const TextStyle(fontSize: 14, color: Colors.grey),
+                            style: TextStyle(
+                                fontSize: 14, color: Colors.teal.shade800),
                           ),
                           Text(
                             'Friend Name: ${giftDetails['friendName']}',
-                            style: const TextStyle(fontSize: 14, color: Colors.grey),
+                            style: TextStyle(
+                                fontSize: 14, color: Colors.teal.shade800),
                           ),
                           Text(
                             'Event Name: ${giftDetails['eventName']}',
-                            style: const TextStyle(fontSize: 14, color: Colors.grey),
+                            style: TextStyle(
+                                fontSize: 14, color: Colors.teal.shade800),
                           ),
                           Text(
                             'Event Date: ${giftDetails['eventDate']}',
-                            style: const TextStyle(fontSize: 14, color: Colors.grey),
+                            style: TextStyle(
+                                fontSize: 14, color: Colors.teal.shade800),
                           ),
                         ],
                       ),
@@ -227,14 +253,18 @@ class _PledgedGiftsPageState extends State<PledgedGiftsPage> {
                       children: [
                         Icon(
                           Icons.handshake,
-                          color: giftDetails['status'] == "Purchased" ? Colors.grey : Colors.green,
+                          color: giftDetails['status'] == "Purchased"
+                              ? Colors.grey
+                              : Colors.teal.shade700,
                           size: 30,
                         ),
                         const SizedBox(height: 8),
                         IconButton(
                           icon: Icon(
                             Icons.shopping_cart,
-                            color: giftDetails['status'] == "Purchased" ? Colors.amber : Colors.grey,
+                            color: giftDetails['status'] == "Purchased"
+                                ? Colors.amber
+                                : Colors.teal.shade400,
                           ),
                           onPressed: () async {
                             await _toggleGiftStatus(
@@ -244,7 +274,8 @@ class _PledgedGiftsPageState extends State<PledgedGiftsPage> {
                               giftDetails['status'],
                             );
 
-                            String statusMessage = giftDetails['status'] == "Pledged"
+                            String statusMessage =
+                            giftDetails['status'] == "Pledged"
                                 ? "Gift purchased"
                                 : "Gift returned to pledged status";
 
@@ -256,7 +287,6 @@ class _PledgedGiftsPageState extends State<PledgedGiftsPage> {
                             );
                           },
                         ),
-
                       ],
                     ),
                   ],

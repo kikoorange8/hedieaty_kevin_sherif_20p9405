@@ -61,23 +61,25 @@ class GiftListService {
     try {
       // Update the gift in SQLite
       await _giftRepository.updateGift(updatedGift);
-      print("Gift updated in SQLite: \${updatedGift.toMap()}");
+      print("Gift updated in SQLite: ${updatedGift.toMap()}");
 
-      // Handle Firebase updates for published events
+      // If event ID has changed, handle Firebase updates
       if (oldGift.eventId != updatedGift.eventId) {
-        // If the old gift was part of a published event, delete it from Firebase
-        if (oldGift.eventId != null) {
+        // Remove from the old event in Firebase if necessary
+        if (oldGift.eventId != null && oldGift.eventId != 0) {
           final oldEvent = await _eventRepository.getEventById(oldGift.eventId.toString());
           if (oldEvent != null && oldEvent.published == 1) {
             await _deleteGiftFromFirebase(oldEvent.userId, oldEvent.id, oldGift.id.toString());
+            print("Gift '${oldGift.id}' removed from event '${oldEvent.id}' in Firebase.");
           }
         }
 
-        // If the updated gift is part of a published event, add it to Firebase
-        if (updatedGift.eventId != null) {
+        // Add to the new event in Firebase if necessary
+        if (updatedGift.eventId != null && updatedGift.eventId != 0) {
           final newEvent = await _eventRepository.getEventById(updatedGift.eventId.toString());
           if (newEvent != null && newEvent.published == 1) {
             await _addGiftToFirebase(newEvent.userId, newEvent.id, updatedGift);
+            print("Gift '${updatedGift.id}' added to event '${newEvent.id}' in Firebase.");
           }
         }
       }
@@ -86,6 +88,11 @@ class GiftListService {
       rethrow;
     }
   }
+
+
+
+
+
 
   // Delete a gift
   Future<void> deleteGift(int giftId) async {

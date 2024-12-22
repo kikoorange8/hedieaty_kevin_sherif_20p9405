@@ -38,6 +38,18 @@ class _GiftListPageState extends State<GiftListPage> {
     _loadEvents();
   }
 
+  Future<String> _getEventNameFromSql(int? eventId) async {
+    if (eventId == null || eventId == 0) {
+      return ""; // No event assigned
+    }
+    try {
+      final event = await _eventRepository.getEventById(eventId.toString());
+      return event?.name ?? ""; // Return the event name or empty string if not found
+    } catch (e) {
+      print("Error fetching event name from SQL: $e");
+      return ""; // Default to empty on error
+    }
+  }
 
   Future<bool> checkInternetConnection() async {
     try {
@@ -47,7 +59,6 @@ class _GiftListPageState extends State<GiftListPage> {
       return false;
     }
   }
-
 
   Future<void> _loadGifts() async {
     setState(() => _isLoading = true);
@@ -90,7 +101,6 @@ class _GiftListPageState extends State<GiftListPage> {
       return "No Event";
     }
   }
-
 
   Future<void> _loadEvents() async {
     try {
@@ -136,8 +146,7 @@ class _GiftListPageState extends State<GiftListPage> {
     });
   }
 
-  Future<bool> checkGiftPledgedOrPurchased(String currentUserId, String eventId,
-      String giftId) async {
+  Future<bool> checkGiftPledgedOrPurchased(String currentUserId, String eventId, String giftId) async {
     try {
       final dbRef = FirebaseDatabase.instance.ref();
       final giftSnapshot = await dbRef.child(
@@ -256,90 +265,100 @@ class _GiftListPageState extends State<GiftListPage> {
                       widget.currentUserId, gift.eventId.toString(), gift.id.toString()),
                   builder: (context, snapshot) {
                     final isPledgedOrPurchased = snapshot.data ?? false;
-                    return Card(
-                      elevation: 2,
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(12),
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(8.0),
-                          child: gift.image?.isNotEmpty == true
-                              ? Image.memory(
-                            base64Decode(gift.image!),
-                            height: 64,
-                            width: 64,
-                            fit: BoxFit.cover,
-                          )
-                              : const Icon(Icons.card_giftcard, size: 64,
-                              color: Colors.teal),
-                        ),
-                        title: Text(
-                          gift.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text(
-                          "Category: ${gift.category}\nPrice: \$${gift.price}",
-                          style: const TextStyle(color: Colors.black54),
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Edit Button
-                            IconButton(
-                              icon: Icon(
-                                Icons.edit,
-                                color: isPledgedOrPurchased
-                                    ? Colors.grey
-                                    : Colors.blue,
-                              ),
-                              onPressed: () {
-                                if (isPledgedOrPurchased) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                          "Cannot edit a pledged or purchased gift."),
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                _showAddEditDialog(gift: gift);
-                              },
+
+                    return FutureBuilder<String>(
+                      future: _getEventNameFromSql(gift.eventId),
+                      builder: (context, eventSnapshot) {
+                        final eventName = eventSnapshot.data ?? ""; // Default to empty if no event name
+                        return Card(
+                          elevation: 2,
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.all(12),
+                            leading: ClipRRect(
+                              borderRadius: BorderRadius.circular(8.0),
+                              child: gift.image?.isNotEmpty == true
+                                  ? Image.memory(
+                                base64Decode(gift.image!),
+                                height: 64,
+                                width: 64,
+                                fit: BoxFit.cover,
+                              )
+                                  : const Icon(Icons.card_giftcard,
+                                  size: 64, color: Colors.teal),
                             ),
-                            // Delete Button
-                            IconButton(
-                              icon: Icon(
-                                Icons.delete,
-                                color: isPledgedOrPurchased
-                                    ? Colors.grey
-                                    : Colors.red,
-                              ),
-                              onPressed: () async {
-                                if (isPledgedOrPurchased) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                          "Cannot delete a pledged or purchased gift."),
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                await _giftService.deleteGift(gift.id);
-                                _loadGifts();
-                              },
+                            title: Text(
+                              gift.name,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
                             ),
-                          ],
-                        ),
-                      ),
+                            subtitle: Text(
+                              "Category: ${gift.category}\nPrice: \$${gift.price}" +
+                                  (eventName.isNotEmpty
+                                      ? "\nEvent: $eventName"
+                                      : ""), // Add event name only if it exists
+                              style: const TextStyle(color: Colors.black54),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Edit Button
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.edit,
+                                    color: isPledgedOrPurchased ? Colors.grey : Colors.blue,
+                                  ),
+                                  onPressed: () {
+                                    if (isPledgedOrPurchased) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              "Cannot edit a pledged or purchased gift."),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    _showAddEditDialog(gift: gift);
+                                  },
+                                ),
+                                // Delete Button
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.delete,
+                                    color: isPledgedOrPurchased ? Colors.grey : Colors.red,
+                                  ),
+                                  onPressed: () async {
+                                    if (isPledgedOrPurchased) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              "Cannot delete a pledged or purchased gift."),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    await _giftService.deleteGift(gift.id);
+                                    _loadGifts();
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 );
               },
+
+
+
+
+
             ),
           ),
         ],

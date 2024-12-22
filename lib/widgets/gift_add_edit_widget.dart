@@ -108,23 +108,8 @@ class _GiftAddEditWidgetState extends State<GiftAddEditWidget> {
         await _giftService.addGift(newGift, isPublished: _selectedEvent?.published == 1);
       } else {
         // Editing an existing gift
-        final oldEventId = widget.gift!.eventId?.toString();
-        final newEventId = newGift.eventId?.toString();
-
-        if (oldEventId != newEventId) {
-          // Event ID has changed
-          final _publishService = PublishEventService();
-          await _publishService.reassignGiftToEvent(
-            widget.userId,
-            newGift.id.toString(),
-            oldEventId ?? "0",
-            newEventId ?? "0",
-            _selectedEvent?.published == 1,
-          );
-        }
-
-        // Update other details of the gift locally
-        await _giftService.updateGift(newGift, widget.gift!);
+        final oldGift = widget.gift!;
+        await _giftService.updateGift(oldGift, newGift);
       }
 
       widget.onSave();
@@ -136,6 +121,7 @@ class _GiftAddEditWidgetState extends State<GiftAddEditWidget> {
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

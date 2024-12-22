@@ -6,7 +6,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'gift_details_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import '../repositories/gift_repository.dart';
 
 class FriendEventGiftList extends StatefulWidget  {
 
@@ -46,6 +46,20 @@ class _FriendEventGiftListState extends State<FriendEventGiftList> {
     return Colors.grey; // Default color
   }
 
+  Future<String> _getGiftName(String giftId) async {
+    try {
+      final GiftRepository giftRepository = GiftRepository();
+      final gift = await giftRepository.getGiftById(giftId);
+
+      // Return the gift name or a default value if not found
+      return gift?.name ?? 'Unnamed Gift';
+    } catch (e) {
+      print("Error fetching gift name for ID $giftId: $e");
+      return 'Unnamed Gift'; // Fallback if an error occurs
+    }
+  }
+
+
   Future<bool> _isPledgedByUser(String friendId, String eventId,
       String giftId) async {
     final prefs = await SharedPreferences.getInstance();
@@ -82,12 +96,12 @@ class _FriendEventGiftListState extends State<FriendEventGiftList> {
     );
   }
 
-  Future<void> sendNotificationToFriend(String giftId, String friendId, {String? message}) async {
+  Future<void> sendNotificationToFriend(String giftName, String friendId, {String? message}) async {
     final currentUserId = FirebaseAuth.instance.currentUser!.uid;
     print('Writing to path: notifications/$friendId');
 
     // Set a default message if none is provided
-    message ??= 'Gift $giftId has been pledged!';
+    message ??= 'Gift $giftName has been pledged!';
 
     // Send the notification to Firebase for the friend
     final notificationRef = FirebaseDatabase.instance
@@ -101,7 +115,7 @@ class _FriendEventGiftListState extends State<FriendEventGiftList> {
       'timestamp': DateTime.now().toIso8601String(),
     });
 
-    print("Notification sent to $friendId for gift $giftId: $message");
+    print("Notification sent to $friendId for gift $giftName: $message");
   }
 
 
@@ -140,11 +154,22 @@ class _FriendEventGiftListState extends State<FriendEventGiftList> {
 
       if (newStatus == 'Pledged' && !pledgedGifts.contains(giftKey)) {
         pledgedGifts.add(giftKey);
-        await sendNotificationToFriend(giftId, friendId); // Notify friend for pledge
+
+        // Fetch the gift name and send the notification
+        final giftName = await _getGiftName(giftId);
+        await sendNotificationToFriend(giftName, friendId); // Notify friend for pledge
       } else if (newStatus == 'Available' && pledgedGifts.contains(giftKey)) {
         pledgedGifts.remove(giftKey);
-        await sendNotificationToFriend(giftId, friendId, message: "Gift $giftId has been unpledged!"); // Notify friend for unpledge
+
+        // Fetch the gift name and send the notification
+        final giftName = await _getGiftName(giftId);
+        await sendNotificationToFriend(
+          giftName,
+          friendId,
+          message: "Gift $giftName has been unpledged!", // Notify friend for unpledge
+        );
       }
+
       await prefs.setStringList(key, pledgedGifts);
 
       print("Gift $giftId updated to $newStatus successfully.");
@@ -372,8 +397,9 @@ class _FriendEventGiftListState extends State<FriendEventGiftList> {
                           children: [
                             Text(gift['description']?.toString() ??
                                 "No description"),
-                            Text("Price: \$${int.tryParse(
-                                gift['price']?.toString() ?? '0') ?? 0}"),
+                            Text(
+                              "Price: \$${(gift['price'] is num) ? gift['price'].toString() : (double.tryParse(gift['price']?.toString() ?? '0')?.toStringAsFixed(2) ?? '0.00')}",
+                            ),
                           ],
                         ),
                         trailing: IconButton(

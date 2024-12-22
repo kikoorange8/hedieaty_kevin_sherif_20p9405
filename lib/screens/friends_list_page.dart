@@ -162,21 +162,26 @@ class _FriendsListPageState extends State<FriendsListPage> {
             TextButton(
               onPressed: () async {
                 final phoneNumber = controller.text.trim();
-                Navigator.pop(context);
+                Navigator.pop(context); // Dismiss the dialog first
 
                 try {
                   await _friendRequestService.sendFriendRequest(
                     currentUserId: currentUserId,
                     phoneNumber: phoneNumber,
                   );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text("Friend request sent successfully.")),
-                  );
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text("Friend request sent successfully.")),
+                    );
+                  }
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(e.toString())),
-                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(e.toString())),
+                    );
+                  }
                 }
               },
               child: const Text("Send"),
@@ -186,6 +191,7 @@ class _FriendsListPageState extends State<FriendsListPage> {
       },
     );
   }
+
 
   Future<void> _showFriendRequests(BuildContext context) async {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;

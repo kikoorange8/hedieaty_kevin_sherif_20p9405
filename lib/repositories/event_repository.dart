@@ -16,6 +16,7 @@ class EventRepository {
   }
 
 
+
   // Fetch events for a specific user
   Future<List<Event>> fetchEventsForUser(String userId) async {
     final db = await _dbHelper.database;

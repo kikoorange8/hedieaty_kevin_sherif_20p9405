@@ -18,6 +18,8 @@ class _ProfilePageState extends State<ProfilePage> {
   Map<String, String?> _userDetails = {"name": "", "phoneNumber": "", "email": ""};
   String? _profileImagePath;
 
+  bool _isLoading = true; // Track loading state
+
   final FetchUserService _fetchUserService = FetchUserService();
   final EditUserService _editUserService = EditUserService();
   final ImageCacheService _imageCacheService = ImageCacheService();
@@ -53,10 +55,18 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // Fetch user details
   Future<void> _fetchUserDetails() async {
-    final details = await _fetchUserService.fetchUserDetails(_userId);
-    setState(() {
-      _userDetails = details;
-    });
+    try {
+      final details = await _fetchUserService.fetchUserDetails(_userId);
+      setState(() {
+        _userDetails = details;
+        _isLoading = false; // Loading complete
+      });
+    } catch (e) {
+      print("Error fetching user details: $e");
+      setState(() {
+        _isLoading = false; // Stop loading even if there's an error
+      });
+    }
   }
 
   // Update user field
@@ -91,7 +101,9 @@ class _ProfilePageState extends State<ProfilePage> {
         title: const Text("Profile"),
         backgroundColor: Colors.indigo,
       ),
-      body: SingleChildScrollView(
+      body: _isLoading // Check if the data is still loading
+          ? const Center(child: CircularProgressIndicator()) // Display a loading indicator
+          : SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -100,9 +112,12 @@ class _ProfilePageState extends State<ProfilePage> {
             CircleAvatar(
               radius: 70,
               backgroundColor: Colors.indigo.shade100,
-              backgroundImage: _profileImagePath != null && _profileImagePath!.startsWith('lib')
+              backgroundImage: _profileImagePath != null &&
+                  _profileImagePath!.startsWith('lib')
                   ? AssetImage(_profileImagePath!) as ImageProvider
-                  : FileImage(File(_profileImagePath!)),
+                  : (_profileImagePath != null
+                  ? FileImage(File(_profileImagePath!))
+                  : null),
               child: _profileImagePath == null
                   ? const Icon(Icons.person, size: 50, color: Colors.indigo)
                   : null,
@@ -134,8 +149,15 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               child: Column(
                 children: [
-                  _buildStaticField("Email", _userDetails["email"] ?? "Unknown"),
-                  _buildEditableField("Name", _userDetails["name"] ?? "Unknown", "name"),
+                  _buildStaticField(
+                    "Email",
+                    _userDetails["email"] ?? "Unknown",
+                  ),
+                  _buildEditableField(
+                    "Name",
+                    _userDetails["name"] ?? "Unknown",
+                    "name",
+                  ),
                   _buildEditableField(
                     "Phone Number",
                     _userDetails["phoneNumber"] ?? "Unknown",
@@ -154,11 +176,13 @@ class _ProfilePageState extends State<ProfilePage> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 50, vertical: 15),
               ),
               child: const Text(
                 "Logout",
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -166,6 +190,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
+
 
   Widget _buildStaticField(String label, String value) {
     return ListTile(
