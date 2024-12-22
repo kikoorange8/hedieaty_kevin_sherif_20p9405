@@ -59,7 +59,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDFNX-I44dOsO3LKtRCw6HCAeudE6s5KKk',
-    appId: '1:9016871080:android:1de4685d7e74dded3d5a9d',
+    appId: '1:9016871080:android:4b3951c90d3f88413d5a9d',
     messagingSenderId: '9016871080',
     projectId: 'hedieaty-73a4d',
     databaseURL: 'https://hedieaty-73a4d-default-rtdb.europe-west1.firebasedatabase.app',
